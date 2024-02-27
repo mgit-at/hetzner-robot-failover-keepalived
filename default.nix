@@ -16,7 +16,7 @@ python3.pkgs.buildPythonApplication rec {
   ];
 
   postPatch = ''
-    sed "s|os.path.dirname(__file__)|\"/etc/hcloud\"|" -i robot_failover.py
+    sed "s|os.path.dirname(__file__)|\"/etc/robot-failover\"|" -i robot_failover.py
   '';
 
   installPhase = ''
