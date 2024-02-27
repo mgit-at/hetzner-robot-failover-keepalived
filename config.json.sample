@@ -1,29 +1,26 @@
+// remove comments after editing
 {
-    "api-token": "",
-    "server-id": 0,
-    "ip-bin-path": "/bin/ip",
-    "use-private-ips": true,
-    "url-floating": "https://api.hetzner.cloud/v1/floating_ips/{}/actions/assign",
-    "floating-ips": [
-        {
-            "floating-ip-id": "",
-            "floating-ip": ""
-        },
-        {
-            "floating-ip-id": "",
-            "floating-ip": ""
-        }
+    // keeaplive virtual router id of this machine
+    "this_router_id": 1,
+    "iproute2_bin": "/bin/ip",
+    "url_floating": "https://robot-ws.your-server.de/failover/{}",
+    // this is used with ipv6 fallback subnets, this has to be the same for all machines
+    "ipv6_suffix": "2",
+    "floating_ips": [
+      { "router": 1, "ip": "1.1.1.1" },
+      { "router": 1, "ip": "1:1:1:1::" },
+      { "router": 2, "ip": "2.2.2.2" },
+      { "router": 2, "ip": "2:2:2:2::" }
     ],
-    "interface-wan": "",
-    "url-alias": "https://api.hetzner.cloud/v1/servers/{}/actions/change_alias_ips",
-    "private-ips": [
-        "127.0.0.1",
-        "10.0.0.1"
-    ],
-    "server-ids": [
-        123,
-        1337
-    ],
-    "network-id": 123,
-    "interface-private": ""
+    "interface": "enpXYZ",
+    "robot_password": "(can be used alternativly to robot_passwords, but is risky security-wise)",
+    // you can set a robot password per server
+    "robot_passwords": {
+      "1": "111",
+      "2": "222"
+    },
+    // you can enable this if you don't want to switch failover ips and instead have a robot vlan
+    // NOTE: set interface to enpXYZ.vlan (or whatever the vlan is named) for this to work
+    // robot_passwords is no longer required with this option set to true
+    "use_private_ips": false
 }
