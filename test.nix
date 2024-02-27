@@ -17,6 +17,10 @@ in
 
       networking.hostName = "router1";
       services.robot-failover.thisRouterID = 1;
+      networking.interfaces."hetzner".ipv4.addresses = [{
+        address = "10.2.0.1";
+        prefixLength = 16;
+      }];
     };
     router2 = { lib, ... }: {
       imports = [
@@ -25,6 +29,10 @@ in
 
       networking.hostName = "router2";
       services.robot-failover.thisRouterID = 2;
+      networking.interfaces."hetzner".ipv4.addresses = [{
+        address = "10.2.0.2";
+        prefixLength = 16;
+      }];
     };
     client = { lib, pkgs, ... }: {
       networking.interfaces."eth1".ipv6.addresses = [{
@@ -32,7 +40,7 @@ in
         prefixLength = 16;
       }];
       networking.interfaces."eth1".ipv4.addresses = [{
-        address = "10.42.0.0";
+        address = "10.42.0.10";
         prefixLength = 16;
       }];
       networking.hostName = "client";

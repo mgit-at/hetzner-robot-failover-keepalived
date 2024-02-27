@@ -102,7 +102,7 @@ in
         uniqueRouters = unique (map (i: i.router) cfg.common.floatingIPs);
       in listToAttrs (map (router: nameValuePair ("robot_${toString router}") {
         interface = cfg.common.interface;
-        state = "BACKUP";
+        state = if cfg.thisRouterID != router then "BACKUP" else "MASTER";
         priority = if cfg.thisRouterID != router then router else cfg.thisRouterID + 10;
         virtualRouterId = router;
         extraConfig = ''
