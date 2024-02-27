@@ -7,6 +7,7 @@ import os
 import requests
 from multiprocessing import Process
 from bunch import bunchify
+from base64 import b64encode
 
 CONFIG_PATH = os.path.join(os.path.abspath(
     os.path.dirname(__file__)), "config.json")
@@ -54,23 +55,25 @@ def change_request(endstate, url, header, payload, ip_bin_path, floating_ip, int
         print("Error: Endstate not defined!")
 
 
-def main(arg_type, arg_name, arg_endstate):
+def main(arg_vrouter, arg_type, arg_name, arg_endstate):
     with open(CONFIG_PATH, "r") as config_file:
         config = bunchify(json.load(config_file))
 
-    # this is server id whose failover we should switch
-    # we take all fallback ips belonging to this server and switch them for ours
-    virtual_router_id = 2
+    # arg_vrouter is server id whose failover we should switch
+    # we take all fallback ips belonging to arg_vrouter and switch them for ours (config.this_server_id)
 
     header = None
 
-    if not 'use_private_ips' in config or not config.use_private_ips:
+    if not 'use_vlan_ips' in config or not config.use_vlan_ips:
+        auth = config.robot_user + (config.robot_password if 'robot_password' in config else config.robot_passwords[str(arg_vrouter)])
+        # this sets the headers for making a request to robot api
+        # which is not required when only switching vlan ips
         header = {
             "Content-Type": "application/json",
-            "Authorization": "Basic " + (config.robot_password if 'robot_password' in config else config.robot_passwords[str(virtual_router_id)])
+            "Authorization": "Basic " + b64encode(bytes(auth, 'utf-8')).decode('utf-8')
         }
 
-    print("Perform action for transition on %s router id with own id %s to %s state" % (virtual_router_id, config.this_router_id, arg_endstate))
+    print("Perform action for transition on %s router id with own id %s to %s state" % (arg_vrouter, config.this_router_id, arg_endstate))
 
     our_v4 = None
     our_v6 = None
@@ -82,7 +85,7 @@ def main(arg_type, arg_name, arg_endstate):
                 our_v4 = ip.ip
 
     for ip in config.floating_ips:
-        if ip.router == virtual_router_id:
+        if ip.router == arg_vrouter:
             addr = ip.ip
             # this is the floating ip api request
             url = config.url_floating.format(addr)
@@ -97,11 +100,11 @@ def main(arg_type, arg_name, arg_endstate):
 
             # we only need to specify the address if switching to *another* target
             # if we switch to ourselves we need to send a delete request
-            if virtual_router_id != config.this_router_id:
+            if arg_vrouter != config.this_router_id:
                 payload_floating = "active_server_ip={}".format(our)
 
             Process(target=change_request, args=(arg_endstate, url, header, payload_floating,
                                              config.iproute2_bin, ip.ip , config.interface)).start()
 
 if __name__ == "__main__":
-    main(arg_type=sys.argv[1], arg_name=sys.argv[2], arg_endstate=sys.argv[3])
+    main(arg_vrouter=int(sys.argv[1]), arg_type=sys.argv[2], arg_name=sys.argv[3], arg_endstate=sys.argv[4])

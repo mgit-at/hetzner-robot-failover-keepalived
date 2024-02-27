@@ -15,17 +15,13 @@ vrrp_instance LB_1 {
     virtual_router_id 1
     priority 100
 
-    unicast_src_ip 1.1.1.1
-    unicast_peer {
-        1.1.1.2
-    }
-
     authentication {
         auth_type PASS
         auth_pass imasupersecurepassword
     }
 
-    notify "/bin/sudo /opt/hcloud-failover/hcloud_failover.py"
+    # add virtual router id as last argument
+    notify "/bin/sudo /opt/hcloud-failover/hcloud_failover.py 1"
 }
 ```
 

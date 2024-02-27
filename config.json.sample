@@ -13,6 +13,7 @@
       { "router": 2, "ip": "2:2:2:2::" }
     ],
     "interface": "enpXYZ",
+    "robot_user": "K1234",
     "robot_password": "(can be used alternativly to robot_passwords, but is risky security-wise)",
     // you can set a robot password per server
     "robot_passwords": {
@@ -21,6 +22,6 @@
     },
     // you can enable this if you don't want to switch failover ips and instead have a robot vlan
     // NOTE: set interface to enpXYZ.vlan (or whatever the vlan is named) for this to work
-    // robot_passwords is no longer required with this option set to true
-    "use_private_ips": false
+    // robot_password(s) and robot_user are no longer required with this option set to true
+    "use_vlan_ips": false
 }
