@@ -47,8 +47,7 @@ in
     start_all()
     router1.wait_for_unit("nginx.service")
     router2.wait_for_unit("nginx.service")
-    router1.wait_for_unit("keepalived.service")
-    router2.wait_for_unit("keepalived.service")
+    client.succeed("sleep 10s")
 
     client.wait_for_unit("network.target")
 

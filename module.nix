@@ -105,6 +105,9 @@ in
         state = "BACKUP";
         priority = if cfg.thisRouterID != router then router else cfg.thisRouterID + 10;
         virtualRouterId = router;
+        extraConfig = ''
+          notify "${pkgs.robot-failover}/bin/robot_failover ${toString router}"
+        '';
       }) uniqueRouters);
     };
   };
