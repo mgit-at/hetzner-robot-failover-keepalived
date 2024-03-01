@@ -13,6 +13,7 @@
     enable = true;
     common = {
       interface = "hetzner";
+      keepaliveInterface = "hetzner";
       floatingIPs = [
         { ip = "10.42.0.1"; router = 1; }
         { ip = "42::1"; router = 1; }
