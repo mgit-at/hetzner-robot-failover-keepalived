@@ -65,7 +65,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
     header = None
 
     if not 'use_vlan_ips' in config or not config.use_vlan_ips:
-        auth = config.robot_user + (config.robot_password if 'robot_password' in config else config.robot_passwords[str(arg_vrouter)])
+        auth = config.robot_user + (config.robot_password if 'robot_password' in config and config.robot_password else config.robot_passwords[str(arg_vrouter)])
         # this sets the headers for making a request to robot api
         # which is not required when only switching vlan ips
         header = {
