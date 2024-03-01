@@ -28,11 +28,11 @@ cd /opt/hcloud-failover
 cp config.json.sample config.json
 ```
 
-**4. Create robot passwords in Hetzner Robot**  
+**4. Create robot auths in Hetzner Robot**  
 1. Login to Hetzner Robot
 2. Server > Select a server > Admin Access
 3. Enter a dedicated admin access password
-4. Add <admin password> as robot password
+4. Add <admin user>:<admin password> as robot auth for that particular router
 
 **5. Fill in the router ids and the fallback ips**
 The router IDs are up to your choosing (keepalived limits them to 255).
