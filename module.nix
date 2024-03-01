@@ -58,21 +58,14 @@ in
           example = "enpXYZ";
         };
 
-        robotUser = mkOption {
-          description = "Robot user";
-          type = types.nullOr types.str;
-          example = "K123";
-          default = null;
-        };
-
-        robotPassword = mkOption {
-          description = "Robot password for all servers";
+        robotAuth = mkOption {
+          description = "Robot user:pass for all servers";
           type = types.nullOr types.str;
           default = null;
         };
 
-        robotPasswords = mkOption {
-          description = "Robot password for individual servers";
+        robotAuths = mkOption {
+          description = "Robot user:pass for individual servers";
           type = types.nullOr (types.attrsOf types.str);
           example = {
             "1" = "...";
@@ -95,10 +88,9 @@ in
       ipv6_suffix = cfg.common.ipv6Suffix;
       floating_ips = cfg.common.floatingIPs;
       interface = cfg.common.interface;
-      robot_user = cfg.common.robotUser;
       # assert one of these two if not use_vlan_ips
-      robot_password = cfg.common.robotPassword;
-      robot_passwords = cfg.common.robotPasswords;
+      robot_auth = cfg.common.robotAuth;
+      robot_auths = cfg.common.robotAuths;
     };
 
     services.keepalived = {
