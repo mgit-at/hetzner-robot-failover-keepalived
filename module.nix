@@ -90,7 +90,7 @@ in
 
     environment.etc."robot-failover/config.json".text = builtins.toJSON {
       this_router_id = cfg.thisRouterID;
-      iproute2_bin = "${pkgs.iproute2}/bin";
+      iproute2_bin = "${pkgs.iproute2}/bin/ip";
       url_floating = cfg.common.urlFloating;
       ipv6_suffix = cfg.common.ipv6Suffix;
       floating_ips = cfg.common.floatingIPs;
