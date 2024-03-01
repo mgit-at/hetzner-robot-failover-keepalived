@@ -104,7 +104,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
                 payload_floating = "active_server_ip={}".format(our)
 
             Process(target=change_request, args=(arg_endstate, url, header, payload_floating,
-                                             config.iproute2_bin, ip.ip , config.interface)).start()
+                                             config.iproute2_bin, addr, config.interface)).start()
 
 if __name__ == "__main__":
     main(arg_vrouter=int(sys.argv[1]), arg_type=sys.argv[2], arg_name=sys.argv[3], arg_endstate=sys.argv[4])
