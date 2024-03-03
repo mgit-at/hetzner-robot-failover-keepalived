@@ -44,7 +44,7 @@ in
               };
 
               owner = mkOption {
-                type = types.nullOr types.str;
+                type = types.nullOr types.int;
                 description = "Router id of server to which this IP belongs";
                 default = null;
               };
