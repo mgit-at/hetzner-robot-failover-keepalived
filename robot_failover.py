@@ -66,7 +66,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
 
     print("Perform action for transition on %s router id with own id %s to %s state" % (arg_vrouter, config.this_router_id, arg_endstate))
 
-    our = config.main_ips[str(config.this_router_id)]
+    main = config.main_ips[str(config.this_router_id)]
 
     for ip in config.floating_ips:
         if ip.router == arg_vrouter:
@@ -78,9 +78,9 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
 
             if ':' in addr:
                 addr += config.ipv6_suffix
-                our = our.ipv6
+                our = main.ipv6
             else:
-                our = our.ipv4
+                our = main.ipv4
 
             payload_floating = None
 
