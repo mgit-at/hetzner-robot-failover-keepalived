@@ -46,6 +46,23 @@ in
           }));
         };
 
+        mainIPs = mkOption {
+          description = "main IPs";
+          type = types.attrsOf (types.submodule ({
+            options = {
+              ipv4 = mkOption {
+                type = types.str;
+                description = "Main IPv4 without netmask";
+              };
+
+              ipv6 = mkOption {
+                type = types.str;
+                description = "Main IPv6 without netmask and suffix";
+              };
+            };
+          }));
+        };
+
         interface = mkOption {
           description = "Interface where to assign IPs";
           type = types.str;
@@ -87,6 +104,7 @@ in
       url_floating = cfg.common.urlFloating;
       ipv6_suffix = cfg.common.ipv6Suffix;
       floating_ips = cfg.common.floatingIPs;
+      main_ips = cfg.common.mainIPs;
       interface = cfg.common.interface;
       # assert one of these two if not use_vlan_ips
       robot_auth = cfg.common.robotAuth;

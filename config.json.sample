@@ -12,6 +12,17 @@
       { "router": 2, "ip": "2.2.2.2" },
       { "router": 2, "ip": "2:2:2:2::" }
     ],
+    // the main ips as assigned by hetzner
+    "main_ips": {
+      "1": {
+        "ipv4": "1.2.3.4",
+        "ipv6": "2a..."
+      },
+      "2": {
+        "ipv4": "1.2.3.4",
+        "ipv6": "2a..."
+      }
+    },
     "interface": "enpXYZ",
     "robot_auth": "(can be used alternativly to robot_auths, but is risky security-wise)",
     // you can set a robot auth per server

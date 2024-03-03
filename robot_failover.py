@@ -64,25 +64,9 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
 
     header = None
 
-    if not 'use_vlan_ips' in config or not config.use_vlan_ips:
-        auth = config.robot_auth if 'robot_auth' in config and config.robot_auth else config.robot_auths[str(arg_vrouter)]
-        # this sets the headers for making a request to robot api
-        # which is not required when only switching vlan ips
-        header = {
-            "Content-Type": "application/json",
-            "Authorization": "Basic " + b64encode(bytes(auth, 'utf-8')).decode('utf-8')
-        }
-
     print("Perform action for transition on %s router id with own id %s to %s state" % (arg_vrouter, config.this_router_id, arg_endstate))
 
-    our_v4 = None
-    our_v6 = None
-    for ip in config.floating_ips:
-        if ip.router == config.this_router_id:
-            if ':' in ip.ip:
-                our_v6 = ip.ip
-            else:
-                our_v4 = ip.ip
+    our = config.main_ips[str(config.this_router_id)]
 
     for ip in config.floating_ips:
         if ip.router == arg_vrouter:
@@ -90,17 +74,31 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
             # this is the floating ip api request
             url = config.url_floating.format(addr)
 
-            our = our_v4
+            our = None
 
             if ':' in addr:
                 addr += config.ipv6_suffix
-                our = our_v6
+                our = our.ipv6
+            else
+                our = our.ipv4
 
             payload_floating = None
 
+            owner = ip.owner if 'owner' in ip else ip.router
+
+            if not 'use_vlan_ips' in config or not config.use_vlan_ips:
+                auth = config.robot_auth if 'robot_auth' in config and config.robot_auth else config.robot_auths[str(owner)]
+                # this sets the headers for making a request to robot api
+                # which is not required when only switching vlan ips
+                header = {
+                    "Content-Type": "application/json",
+                    "Authorization": "Basic " + b64encode(bytes(auth, 'utf-8')).decode('utf-8')
+                }
+
+
             # we only need to specify the address if switching to *another* target
             # if we switch to ourselves we need to send a delete request
-            if arg_vrouter != config.this_router_id:
+            if owner != config.this_router_id:
                 payload_floating = "active_server_ip={}".format(our)
 
             Process(target=change_request, args=(arg_endstate, url, header, payload_floating,
