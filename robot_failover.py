@@ -79,7 +79,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
             if ':' in addr:
                 addr += config.ipv6_suffix
                 our = our.ipv6
-            else
+            else:
                 our = our.ipv4
 
             payload_floating = None
