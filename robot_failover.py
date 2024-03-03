@@ -73,8 +73,8 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
                 if r.status_code != 409 or j['error']['code'] != 'FAILOVER_LOCKED':
                     break
                 else:
-                    print(log_prefix + 'trying again...')
-                    sleep(5)
+                    print(log_prefix + 'trying again in 120s...')
+                    sleep(120)
 
     else:
         print("Error: Endstate not defined!")
