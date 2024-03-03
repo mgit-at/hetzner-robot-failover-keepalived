@@ -42,6 +42,12 @@ in
                 type = types.int;
                 description = "Virtual router id";
               };
+
+              owner = mkOption {
+                type = types.nullOr types.str;
+                description = "Router id of server to which this IP belongs";
+                default = null;
+              };
             };
           }));
         };

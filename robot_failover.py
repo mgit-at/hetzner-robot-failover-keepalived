@@ -84,7 +84,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
 
             payload_floating = None
 
-            owner = ip.owner if 'owner' in ip else ip.router
+            owner = ip.owner if 'owner' in ip and ip.owner else ip.router
 
             if not 'use_vlan_ips' in config or not config.use_vlan_ips:
                 auth = config.robot_auth if 'robot_auth' in config and config.robot_auth else config.robot_auths[str(owner)]
