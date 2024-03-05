@@ -5,6 +5,7 @@ import sys
 import json
 import os
 import requests
+import syslog
 from multiprocessing import Process
 from bunch import bunchify
 from base64 import b64encode
@@ -12,6 +13,18 @@ from time import sleep
 
 CONFIG_PATH = os.path.join(os.path.abspath(
     os.path.dirname(__file__)), "config.json")
+
+DEBUG = sys.stdout.isatty()
+
+def debug_log(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
+def normal_log(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+    else:
+        syslog.syslog(syslog.LOG_INFO, *args, **kwargs)
 
 
 def del_ip(ip_bin_path, ip, interface):
@@ -46,25 +59,26 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
                 payload = "active_server_ip={}".format(target_ip)
 
                 if current['failover']['active_server_ip'] == target_ip:
-                    print(log_prefix + 'failed over as requested already, need no switch')
+                    normal_log(log_prefix + 'failed over as requested already, need no switch')
                     break
 
-                print(log_prefix + "Post request to: " + url)
-                print(log_prefix + "Header: " + str(header))
-                print(log_prefix + "Data: " + str(payload))
+                normal_log(log_prefix + "Post request to: " + url)
+                debug_log(log_prefix + "Header: " + str(header))
+                debug_log(log_prefix + "Data: " + str(payload))
                 r = requests.post(url, data=payload, headers=header)
-                print(log_prefix + "Response:")
-                print(r.status_code, r.reason)
-                print(r.text)
+                debug_log(log_prefix + "Response:")
+                debug_log(r.status_code, r.reason)
+                debug_log(r.text)
                 j = r.json()
                 if r.status_code != 409 or j['error']['code'] != 'FAILOVER_LOCKED':
+                    normal_log(log_prefix + 'done')
                     break
                 else:
-                    print(log_prefix + 'trying again in 120s...')
+                    normal_log(log_prefix + 'trying again in 120s...')
                     sleep(120)
 
     else:
-        print("Error: Endstate not defined!")
+        normal_log("Error: Endstate not defined!")
 
 
 def main(arg_vrouter, arg_type, arg_name, arg_endstate):
@@ -76,7 +90,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
 
     header = None
 
-    print("Perform action for transition on %s router id with own id %s to %s state" % (arg_vrouter, config.this_router_id, arg_endstate))
+    normal_log("Perform action for transition on %s router id with own id %s to %s state" % (arg_vrouter, config.this_router_id, arg_endstate))
 
     main = config.main_ips[str(config.this_router_id)]
 
