@@ -45,27 +45,28 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
 
                 # we only need to specify the address if switching to *another* target
                 # if we switch to ourselves we need to send a delete request
-                if current['failover']['server_ip'] != target_ip and current['failover']['server_ipv6_net'] != target_ip:
-                    payload = "active_server_ip={}".format(target_ip)
+                #if current['failover']['server_ip'] != target_ip and current['failover']['server_ipv6_net'] != target_ip:
+
+                payload = "active_server_ip={}".format(target_ip)
 
                 if current['failover']['active_server_ip'] == target_ip:
                     print(log_prefix + 'failed over as requested already, need no switch')
                     break
-                elif not payload and not current['failover']['active_server_ip']:
-                    print(log_prefix + 'not failed over as request already, need no switch')
-                    break
+                # elif not payload and not current['failover']['active_server_ip']:
+                #     print(log_prefix + 'not failed over as request already, need no switch')
+                #     break
 
                 r = None
 
-                if payload:
-                    print(log_prefix + "Post request to: " + url)
-                    print(log_prefix + "Header: " + str(header))
-                    print(log_prefix + "Data: " + str(payload))
-                    r = requests.post(url, data=payload, headers=header)
-                else:
-                    print(log_prefix + "Delete request to: " + url)
-                    print(log_prefix + "Header: " + str(header))
-                    r = requests.delete(url, headers=header)
+                # if payload:
+                print(log_prefix + "Post request to: " + url)
+                print(log_prefix + "Header: " + str(header))
+                print(log_prefix + "Data: " + str(payload))
+                r = requests.post(url, data=payload, headers=header)
+                # else:
+                #     print(log_prefix + "Delete request to: " + url)
+                #     print(log_prefix + "Header: " + str(header))
+                #     r = requests.delete(url, headers=header)
                 print(log_prefix + "Response:")
                 print(r.status_code, r.reason)
                 print(r.text)
@@ -106,8 +107,6 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
                 our = main.ipv6
             else:
                 our = main.ipv4
-
-            payload_floating = None
 
             owner = ip.owner if 'owner' in ip and ip.owner else ip.router
 
