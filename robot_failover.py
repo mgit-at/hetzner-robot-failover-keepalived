@@ -7,6 +7,7 @@ import os
 import requests
 import syslog
 from multiprocessing import Process
+from subprocess import check_output
 from bunch import bunchify
 from base64 import b64encode
 from time import sleep
@@ -41,6 +42,10 @@ def add_ip(ip_bin_path, ip, interface):
         os.system(ip_bin_path + " addr add " + ip + "/32 dev " + interface)
 
 
+def has_ip(ip_bin_path, ip, interface):
+    # if this command returns any output, the address exists on the interface
+    return bool(len(check_output([ip_bin_path, 'a', 's', interface, 'to', ip])))
+
 def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, interface):
     log_prefix = "[%s -> %s] " % (url, target_ip)
     if endstate == "BACKUP":
@@ -52,6 +57,9 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
         add_ip(ip_bin_path, floating_ip, interface)
         if header:
             while True:
+                if not has_ip(ip_bin_path, floating_ip, interface):
+                    normal_log(log_prefix + 'ip %s has vanished from interface %s, cancelling attempt to switch' % (floating_ip, interface))
+                    break
                 current = requests.get(url, headers=header)
                 current = current.json()
                 payload = None
