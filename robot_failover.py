@@ -29,6 +29,7 @@ def normal_log(*args, **kwargs):
 
 
 def del_ip(ip_bin_path, ip, interface):
+    normal_log('[%s] removing ip %s' % (interface, ip))
     if ':' in ip:
         os.system(ip_bin_path + " -6 addr del " + ip + "/128 dev " + interface)
     else:
@@ -36,6 +37,7 @@ def del_ip(ip_bin_path, ip, interface):
 
 
 def add_ip(ip_bin_path, ip, interface):
+    normal_log('[%s] adding ip %s' % (interface, ip))
     if ':' in ip:
         os.system(ip_bin_path + " -6 addr add " + ip + "/128 dev " + interface)
     else:
