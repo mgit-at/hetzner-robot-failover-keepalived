@@ -81,6 +81,22 @@ in
           example = "enpXYZ";
         };
 
+        extraKeepalivedOptions = mkOption {
+          # todo: limit to vrrp options
+          type = types.functionTo (types.attrsOf types.anything);
+          default = { thisRouterID, keepaliveInterface, router }: {};
+          defaultText = literalExpression "{ thisRouterID, keepaliveInterface, router }: {}";
+          example = literalExpression ''
+            { thisRouterID, keepaliveInterface, router }: {
+
+            }
+          '';
+          description = ''
+            Extra options for keepalived.
+          '';
+        };
+
+
         robotAuth = mkOption {
           description = "Robot user:pass for all servers";
           type = types.nullOr types.str;
@@ -122,7 +138,7 @@ in
 
       vrrpInstances = let
         uniqueRouters = unique (map (i: i.router) cfg.common.floatingIPs);
-      in listToAttrs (map (router: nameValuePair ("robot_${toString router}") {
+      in listToAttrs (map (router: nameValuePair ("robot_${toString router}") ({
         interface = cfg.common.keepaliveInterface;
         state = if cfg.thisRouterID != router then "BACKUP" else "MASTER";
         priority = if cfg.thisRouterID != router then router else cfg.thisRouterID + 10;
@@ -130,7 +146,12 @@ in
         extraConfig = ''
           notify "${pkgs.robot-failover}/bin/robot_failover ${toString router}"
         '';
-      }) uniqueRouters);
+      } // (cfg.common.extraKeepalivedOptions {
+        inherit (cfg)
+          thisRouterID
+          keepaliveInterface
+          router;
+      }))) uniqueRouters);
     };
   };
 }
