@@ -149,8 +149,8 @@ in
       } // (cfg.common.extraKeepalivedOptions {
         inherit (cfg)
           thisRouterID
-          keepaliveInterface
-          router;
+          keepaliveInterface;
+        inherit router;
       }))) uniqueRouters);
     };
   };
