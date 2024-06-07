@@ -48,15 +48,21 @@ def has_ip(ip_bin_path, ip, interface):
     # if this command returns any output, the address exists on the interface
     return bool(len(check_output([ip_bin_path, 'a', 's', interface, 'to', ip])))
 
-def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, interface):
+def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, interface, dummy_interface):
     log_prefix = "[%s -> %s] " % (url, target_ip)
     if endstate == "BACKUP":
         del_ip(ip_bin_path, floating_ip, interface)
+        if dummy_interface:
+            add_ip(ip_bin_path, floating_ip, dummy_interface)
     elif endstate == "FAULT":
         del_ip(ip_bin_path, floating_ip, interface)
+        if dummy_interface:
+            add_ip(ip_bin_path, floating_ip, dummy_interface)
 
     elif endstate == "MASTER":
         add_ip(ip_bin_path, floating_ip, interface)
+        if dummy_interface:
+            del_ip(ip_bin_path, floating_ip, dummy_interface)
         if header:
             while True:
                 if not has_ip(ip_bin_path, floating_ip, interface):
@@ -130,7 +136,9 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
                 }
 
             Process(target=change_request, args=(arg_endstate, url, header, our,
-                                             config.iproute2_bin, addr, config.interface)).start()
+                                             config.iproute2_bin, addr, config.interface,
+                                             config.dummy_interface if 'dummy_interface' in config and config.dummy_interface else False)
+                                         ).start()
 
 if __name__ == "__main__":
     main(arg_vrouter=int(sys.argv[1]), arg_type=sys.argv[2], arg_name=sys.argv[3], arg_endstate=sys.argv[4])

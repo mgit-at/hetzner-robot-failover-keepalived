@@ -75,6 +75,13 @@ in
           example = "enpXYZ";
         };
 
+        dummyInterface = mkOption {
+          description = "Dummy interface to use for L4 load-balancing";
+          type = types.nullOr types.str;
+          example = "lo";
+          default = null;
+        };
+
         keepaliveInterface = mkOption {
           description = "Interface where to broadcast keepalive messages";
           type = types.str;
@@ -128,6 +135,7 @@ in
       floating_ips = cfg.common.floatingIPs;
       main_ips = cfg.common.mainIPs;
       interface = cfg.common.interface;
+      dummy_interface = cfg.common.dummyInterface;
       # assert one of these two if not use_vlan_ips
       robot_auth = cfg.common.robotAuth;
       robot_auths = cfg.common.robotAuths;
