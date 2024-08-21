@@ -17,7 +17,7 @@
     in {
       packages.${system} = {
         default = pkgs.robot-failover;
-        inherit (pkgs) robot-failover;
+        inherit (pkgs) robot-failover failover-daemon;
       };
 
       checks.${system} = {
@@ -27,6 +27,9 @@
   in {
     overlays.default = import ./overlay.nix;
 
-    nixosModules.hcloud = import ./module.nix;
+    nixosModules = {
+      hcloud = import ./module.nix;
+      failover-daemon = import ./failover-daemon/module.nix;
+    };
   } // (gen "x86_64-linux");
 }
