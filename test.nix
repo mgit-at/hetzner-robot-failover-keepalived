@@ -145,19 +145,9 @@ in
         address = "12.0.0.2";
         prefixLength = 8;
       }];
-      networking.interfaces."client".ipv4.routes = [{
-        address = "42.0.0.0";
-        prefixLength = 8;
-        via = "12.0.0.1";
-      }];
       networking.interfaces."client".ipv6.addresses = [{
         address = "12::2";
         prefixLength = 16;
-      }];
-      networking.interfaces."client".ipv6.routes = [{
-        address = "42::";
-        prefixLength = 16;
-        via = "12::1";
       }];
       networking.defaultGateway = {
         interface = "client";
@@ -202,6 +192,7 @@ in
     # TODO: we can specify this in interface config
     with subtest("[workarround] replace default ipv6 router"):
       # qemu seems to advertise something via ra, let's replace it
+      client.succeed("ip -6 r r default via 12::1 metric 50")
       router1.succeed("ip -6 r r default via fe42::254 metric 50")
       router2.succeed("ip -6 r r default via fe42::254 metric 50")
 
