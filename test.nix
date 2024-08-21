@@ -219,7 +219,12 @@ in
       router1.shutdown()
       router2.succeed("systemctl restart keepalived")
       router2.succeed("sleep 10s")
+      daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
+      daemon.succeed("ping -6 42:1::2 -w 1 -c 1")
+      client.succeed("curl -v 42.0.0.1 >&2")
       client.succeed("curl 42.0.0.1 | grep server-router2")
+      client.succeed("sleep 2s")
       client.succeed("curl [42:1::2] | grep server-router2")
+      client.succeed("sleep 2s")
   '';
 }
