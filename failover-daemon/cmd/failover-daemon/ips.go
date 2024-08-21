@@ -38,7 +38,9 @@ type IPState struct {
 }
 
 func BadRequest(w http.ResponseWriter, why string) {
+	fmt.Printf("[BadRequest] %s\n", why)
 	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte(why))
 }
 
 func MakeCommonRes(addr *netip.Addr, state *IPState) CommonResponse {
@@ -189,6 +191,7 @@ func Init(config Config) (*http.ServeMux, error) {
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("Could not replace route"))
+				fmt.Printf("%s -> %s: Could not replace route\n", ip, newTargetIP)
 				return
 			}
 
@@ -211,6 +214,7 @@ func Init(config Config) (*http.ServeMux, error) {
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("Could not remove route"))
+				fmt.Printf("%s: Could not delete route\n", ip)
 				return
 			}
 

@@ -12,7 +12,7 @@ in
   # 42.0.0.0/8 failover IPs
   # 42::/8     failover IPs
   # 10.42.0.0/24 internal
-  # fe42::/64    internal
+  # fe42::/16    internal
 
   # client routes to daemon
   # daemon has via routes that forward traffic to router
@@ -55,7 +55,7 @@ in
       }];
       networking.interfaces."hetzner".ipv6.addresses = [{
         address = "fe42::254";
-        prefixLength = 64;
+        prefixLength = 16;
       }];
       networking.interfaces."client".ipv4.addresses = [{
         address = "12.0.0.1";
@@ -74,22 +74,22 @@ in
               token = "1234";
               main = {
                 v4 = "10.42.0.1";
-                v6 = "fe42::1:2";
+                v6 = "fe42:1::";
               };
               failover = {
                 v4 = "42.0.0.1";
-                v6 = "42::1:2";
+                v6 = "42:1::";
               };
             };
             "2" = {
               token = "1234";
               main = {
                 v4 = "10.42.0.2";
-                v6 = "fe42::2:2";
+                v6 = "fe42:2::";
               };
               failover = {
                 v4 = "42.0.0.2";
-                v6 = "42::2:2";
+                v6 = "42:2::";
               };
             };
           };
@@ -110,8 +110,8 @@ in
         prefixLength = 16;
       }];
       networking.interfaces."hetzner".ipv6.addresses = [{
-        address = "fe42::1:2";
-        prefixLength = 64;
+        address = "fe42:1::2";
+        prefixLength = 16;
       }];
     };
     router2 = { lib, ... }: {
@@ -127,8 +127,8 @@ in
         prefixLength = 16;
       }];
       networking.interfaces."hetzner".ipv6.addresses = [{
-        address = "fe42::2:2";
-        prefixLength = 64;
+        address = "fe42:2::2";
+        prefixLength = 16;
       }];
     };
     client = { lib, pkgs, ... }: {
@@ -186,7 +186,7 @@ in
 
     daemon.wait_for_unit("failover-daemon.service")
 
-    client.succeed("sleep 30s")
+    client.succeed("sleep 44s")
     client.wait_for_unit("network.target")
 
     with subtest("daemon works"):
@@ -194,9 +194,9 @@ in
 
     with subtest("nginx running on local ips"):
       daemon.succeed("curl 10.42.0.1 | grep server-router1")
-      daemon.succeed("curl [fe42::1:2] | grep server-router1")
+      daemon.succeed("curl [fe42:1::2] | grep server-router1")
       daemon.succeed("curl 10.42.0.2 | grep server-router2")
-      daemon.succeed("curl [fe42::2:2] | grep server-router2")
+      daemon.succeed("curl [fe42:2::2] | grep server-router2")
       daemon.succeed("sleep 2s")
 
     # TODO: we can specify this in interface config
@@ -205,18 +205,21 @@ in
       router1.succeed("ip -6 r r default via fe42::254 metric 50")
       router2.succeed("ip -6 r r default via fe42::254 metric 50")
 
-    with subtest("router1 is serving 42.0.0.1 and 42::1:2"):
-      daemon.succeed("ip route replace 42.0.0.1 via 10.42.0.1")
-      daemon.succeed("ip -6 route replace 42::1:2 via fe42::1:2")
+    with subtest("router1 is serving 42.0.0.1 and 42:1::2"):
+      router1.succeed("systemctl restart keepalived")
+      router1.succeed("sleep 10s")
       daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
-      daemon.succeed("ping -6 42::1:2 -w 1 -c 1")
+      daemon.succeed("ping -6 42:1::2 -w 1 -c 1")
       client.succeed("curl 42.0.0.1 | grep server-router1")
       client.succeed("sleep 2s")
-      client.succeed("curl [42::1:2] | grep server-router1")
+      client.succeed("curl [42:1::2] | grep server-router1")
       client.succeed("sleep 2s")
 
-    with subtest("when router1 is offline router2 is serving 10.42.0.1 and 42::1"):
+    with subtest("when router1 is offline router2 is serving 10.42.0.1 and 42:1::2"):
+      router1.shutdown()
+      router2.succeed("systemctl restart keepalived")
+      router2.succeed("sleep 10s")
       client.succeed("curl 42.0.0.1 | grep server-router2")
-      client.succeed("curl [42::1:2] | grep server-router2")
+      client.succeed("curl [42:1::2] | grep server-router2")
   '';
 }

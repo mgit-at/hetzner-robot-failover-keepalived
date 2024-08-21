@@ -33,12 +33,22 @@ func (r *IPRoute2) fmt(ip netip.Addr, cmdstr ...string) []string {
 	}
 }
 
+func (r *IPRoute2) ip(ip netip.Addr) string {
+	str := ip.String()
+
+	if str[len(str)-1] == ':' {
+		return str + "2"
+	}
+
+	return str
+}
+
 func (r *IPRoute2) ReplaceRoute(failoverIP netip.Addr, targetIP netip.Addr) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	return r.exec(r.fmt(failoverIP,
-		"route", "replace", failoverIP.String(), "via", targetIP.String())...)
+		"route", "replace", r.ip(failoverIP), "via", r.ip(targetIP))...)
 }
 
 func (r *IPRoute2) RemoveRoute(failoverIP netip.Addr) error {
@@ -46,14 +56,14 @@ func (r *IPRoute2) RemoveRoute(failoverIP netip.Addr) error {
 	defer r.mu.Unlock()
 
 	return r.exec(r.fmt(failoverIP,
-		"route", "delete", failoverIP.String())...)
+		"route", "delete", r.ip(failoverIP))...)
 }
 
 func (r *IPRoute2) GetRoute(failoverIP netip.Addr) (*netip.Addr, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	cmdstr := r.fmt(failoverIP, "route", "get", failoverIP.String())
+	cmdstr := r.fmt(failoverIP, "route", "get", r.ip(failoverIP))
 
 	fmt.Printf("[iproute] exec ip %s\n", cmdstr)
 	out, err := exec.Command("ip", cmdstr...).Output()

@@ -16,10 +16,13 @@ CONFIG_PATH = os.path.join(os.path.abspath(
     os.path.dirname(__file__)), "config.json")
 
 DEBUG = sys.stdout.isatty()
+FORCE_DEBUG = 'FORCE_DEBUG_FAILOVER' in os.environ
 
 def debug_log(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
+    elif FORCE_DEBUG:
+        syslog.syslog(syslog.LOG_INFO, *args, **kwargs)
 
 def normal_log(*args, **kwargs):
     if DEBUG:
