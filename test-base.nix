@@ -15,11 +15,22 @@
       interface = "hetzner";
       keepaliveInterface = "hetzner";
       floatingIPs = [
-        { ip = "10.42.0.1"; router = 1; }
+        { ip = "42.0.0.1"; router = 1; }
         { ip = "42::1"; router = 1; }
-        { ip = "10.42.0.2"; router = 2; }
+        { ip = "42.0.0.2"; router = 2; }
         { ip = "42::2"; router = 2; }
       ];
+      mainIPs = {
+        "1" = {
+          ipv4 = "10.42.0.1";
+          ipv6 = "fe42::1";
+        };
+        "2" = {
+          ipv4 = "10.42.0.2";
+          ipv6 = "fe42::2";
+        };
+      };
+      urlFloating = "http://10.42.0.254/{ip}";
     };
   };
 

@@ -9,7 +9,79 @@ in
 {
   name = "mgit-robot-failover";
 
+  # 10.42.0.x -> the "failover ips"
+  # 10.42.10.x -> debug/internal
+
   nodes = {
+    daemon = { lib, ... }: {
+      imports = [
+        ./failover-daemon/module.nix
+      ];
+
+      virtualisation.vlans = [ 1 ];
+      networking.vlans.hetzner = {
+        id = 1;
+        interface = "eth1";
+      };
+      networking.vlans.client = {
+        id = 2;
+        interface = "eth1";
+      };
+
+      networking = {
+        nftables.enable = true;
+        firewall.allowedTCPPorts = [ 9090 ];
+      };
+
+      networking.hostName = "daemon";
+      networking.interfaces."hetzner".ipv4.addresses = [{
+        address = "10.42.0.254";
+        prefixLength = 16;
+      }];
+      networking.interfaces."hetzner".ipv6.addresses = [{
+        address = "fe42::254";
+        prefixLength = 64;
+      }];
+      networking.interfaces."client".ipv4.addresses = [{
+        address = "10.12.0.1";
+        prefixLength = 16;
+      }];
+      networking.interfaces."client".ipv6.addresses = [{
+        address = "12::1";
+        prefixLength = 8;
+      }];
+
+      services.failover-daemon = {
+        enable = true;
+        config = {
+          servers = {
+            "1" = {
+              token = "1234";
+              main = {
+                v4 = "10.42.0.1";
+                v6 = "fe42::1";
+              };
+              failover = {
+                v4 = "42.0.0.1";
+                v6 = "42::1";
+              };
+            };
+            "2" = {
+              token = "1234";
+              main = {
+                v4 = "10.42.0.2";
+                v6 = "fe42::2";
+              };
+              failover = {
+                v4 = "42.0.0.2";
+                v6 = "42::2";
+              };
+            };
+          };
+          listen = "10.42.0.254:9090";
+        };
+      };
+    };
     router1 = { lib, ... }: {
       imports = [
         shared
@@ -18,8 +90,12 @@ in
       networking.hostName = "router1";
       services.robot-failover.thisRouterID = 1;
       networking.interfaces."hetzner".ipv4.addresses = [{
-        address = "10.2.0.1";
+        address = "10.42.0.1";
         prefixLength = 16;
+      }];
+      networking.interfaces."hetzner".ipv6.addresses = [{
+        address = "fe42::1";
+        prefixLength = 64;
       }];
     };
     router2 = { lib, ... }: {
@@ -30,18 +106,36 @@ in
       networking.hostName = "router2";
       services.robot-failover.thisRouterID = 2;
       networking.interfaces."hetzner".ipv4.addresses = [{
-        address = "10.2.0.2";
+        address = "10.42.0.2";
         prefixLength = 16;
+      }];
+      networking.interfaces."hetzner".ipv6.addresses = [{
+        address = "fe42::2";
+        prefixLength = 64;
       }];
     };
     client = { lib, pkgs, ... }: {
-      networking.interfaces."eth1".ipv6.addresses = [{
-        address = "42::";
+      networking.vlans.client = {
+        id = 2;
+        interface = "eth1";
+      };
+      networking.interfaces."client".ipv4.addresses = [{
+        address = "10.12.0.2";
         prefixLength = 16;
       }];
-      networking.interfaces."eth1".ipv4.addresses = [{
-        address = "10.42.0.10";
-        prefixLength = 16;
+      networking.interfaces."client".ipv4.routes = [{
+        address = "42.0.0.0";
+        prefixLength = 8;
+        via = "10.12.0.1";
+      }];
+      networking.interfaces."client".ipv6.addresses = [{
+        address = "12::2";
+        prefixLength = 8;
+      }];
+      networking.interfaces."client".ipv6.routes = [{
+        address = "42::";
+        prefixLength = 8;
+        via = "12::1";
       }];
       networking.hostName = "client";
       environment.systemPackages = with pkgs; [
@@ -55,9 +149,13 @@ in
     start_all()
     router1.wait_for_unit("nginx.service")
     router2.wait_for_unit("nginx.service")
-    client.succeed("sleep 10s")
+    daemon.wait_for_unit("failover-daemon.service")
+    client.succeed("sleep 30s")
 
     client.wait_for_unit("network.target")
+
+    with subtest("daemon works"):
+      router1.succeed("curl -v http://10.42.0.254:9090")
 
     with subtest("router1 is serving 10.42.0.1 and 42::1"):
       client.succeed("curl 10.42.0.1 | grep server-router1")
