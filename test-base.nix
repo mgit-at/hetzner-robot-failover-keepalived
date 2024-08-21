@@ -30,13 +30,20 @@
           ipv6 = "fe42::2";
         };
       };
-      urlFloating = "http://10.42.0.254/{ip}";
+      urlFloating = "http://10.42.0.254/{0}";
+      robotAuths = {
+        "1" = "1:1234";
+        "2" = "2:1234";
+      };
     };
   };
 
   networking = {
     nftables.enable = true;
     firewall.allowedTCPPorts = [ 80 ];
+    firewall.extraInputRules = ''
+      ip protocol vrrp accept
+    '';
   };
 
   networking.defaultGateway = {

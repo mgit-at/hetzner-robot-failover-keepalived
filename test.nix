@@ -132,6 +132,10 @@ in
       }];
     };
     client = { lib, pkgs, ... }: {
+      imports = [
+        ./test-tcpdump.nix
+      ];
+
       virtualisation.vlans = [ 1 2 ];
       networking.vlans.client = {
         id = 2;

@@ -143,6 +143,10 @@ in
 
     services.keepalived = {
       enable = true;
+      extraGlobalDefs = ''
+        vrrp_notify_priority_changes true
+        # vrrp_version 3
+      '';
 
       vrrpInstances = let
         uniqueRouters = unique (map (i: i.router) cfg.common.floatingIPs);
