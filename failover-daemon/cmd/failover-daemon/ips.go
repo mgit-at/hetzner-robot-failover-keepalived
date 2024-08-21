@@ -98,6 +98,7 @@ func Init(config Config) (*http.ServeMux, error) {
 		}
 
 		if d.serverIPs[*current] != nil {
+			fmt.Sprintf("Imported: %s points to %s\n", ip, *current)
 			ipState.targetServer = d.serverIPs[*current]
 		}
 	}

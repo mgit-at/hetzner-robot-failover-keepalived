@@ -13,10 +13,11 @@ type IPRoute2 struct {
 	mu sync.Mutex
 }
 
-var findVia = regexp.MustCompile(`(?m)via ([0-9a-f\[.;]+)`)
+var findVia = regexp.MustCompile(`via ([0-9a-f\[.:]+)`)
 
-func (r *IPRoute2) exec(cmdstr string) error {
-	cmd := exec.Command(cmdstr)
+func (r *IPRoute2) exec(cmdstr ...string) error {
+	fmt.Sprintf("[iproute] exec ip %s\n", cmdstr)
+	cmd := exec.Command("ip", cmdstr...)
 	if errors.Is(cmd.Err, exec.ErrDot) {
 		cmd.Err = nil
 	}
@@ -24,11 +25,11 @@ func (r *IPRoute2) exec(cmdstr string) error {
 	return cmd.Run()
 }
 
-func (r *IPRoute2) fmt(ip netip.Addr, cmdstr string) string {
+func (r *IPRoute2) fmt(ip netip.Addr, cmdstr ...string) []string {
 	if ip.Is4() {
-		return "ip " + cmdstr
+		return cmdstr
 	} else {
-		return "ip -6 " + cmdstr
+		return append([]string{"-6"}, cmdstr...)
 	}
 }
 
@@ -37,7 +38,7 @@ func (r *IPRoute2) ReplaceRoute(failoverIP netip.Addr, targetIP netip.Addr) erro
 	defer r.mu.Unlock()
 
 	return r.exec(r.fmt(failoverIP,
-		fmt.Sprintf("route replace %s via %s", failoverIP, targetIP)))
+		"route", "replace", failoverIP.String(), "via", targetIP.String())...)
 }
 
 func (r *IPRoute2) RemoveRoute(failoverIP netip.Addr) error {
@@ -45,22 +46,23 @@ func (r *IPRoute2) RemoveRoute(failoverIP netip.Addr) error {
 	defer r.mu.Unlock()
 
 	return r.exec(r.fmt(failoverIP,
-		fmt.Sprintf("route delete %s", failoverIP)))
+		"route", "delete", failoverIP.String())...)
 }
 
 func (r *IPRoute2) GetRoute(failoverIP netip.Addr) (*netip.Addr, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	cmdstr := r.fmt(failoverIP, fmt.Sprintf("route get %s", failoverIP))
+	cmdstr := r.fmt(failoverIP, "route", "get", failoverIP.String())
 
-	out, err := exec.Command(cmdstr).Output()
+	fmt.Sprintf("[iproute] exec ip %s\n", cmdstr)
+	out, err := exec.Command("ip", cmdstr...).Output()
 	if err != nil {
 		return nil, err
 	}
 
-	f := findVia.Find(out)
-	ip, err := netip.ParseAddr(string(f))
+	f := findVia.FindSubmatch(out)
+	ip, err := netip.ParseAddr(string(f[1]))
 	if err != nil {
 		return nil, err
 	}
