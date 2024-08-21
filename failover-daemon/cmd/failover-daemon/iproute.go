@@ -58,7 +58,18 @@ func (r *IPRoute2) GetRoute(failoverIP netip.Addr) (*netip.Addr, error) {
 	fmt.Sprintf("[iproute] exec ip %s\n", cmdstr)
 	out, err := exec.Command("ip", cmdstr...).Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// Address not routable
+			if exitErr.ExitCode() == 2 {
+				return nil, nil
+			}
+		}
 		return nil, err
+	}
+
+	// No route found
+	if !findVia.Match(out) {
+		return nil, nil
 	}
 
 	f := findVia.FindSubmatch(out)

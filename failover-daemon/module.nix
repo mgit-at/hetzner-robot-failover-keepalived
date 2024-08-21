@@ -21,6 +21,8 @@ in
       script = ''
         failover-daemon ${type.generate "config.json" cfg.config}
       '';
+      wantedBy = [ "multi-user.target" ];
+      after = [ "network.target" ];
     };
   };
 }

@@ -16,9 +16,15 @@ in
     daemon = { lib, ... }: {
       imports = [
         ./failover-daemon/module.nix
+        ./test-tcpdump.nix
       ];
 
-      virtualisation.vlans = [ 1 ];
+      boot.kernel.sysctl = {
+        "net.ipv4.conf.all.forwarding" = true;
+        "net.ipv6.conf.all.forwarding" = true;
+      };
+
+      virtualisation.vlans = [ 1 2 ];
       networking.vlans.hetzner = {
         id = 1;
         interface = "eth1";
@@ -38,10 +44,18 @@ in
         address = "10.42.0.254";
         prefixLength = 16;
       }];
+      /* networking.interfaces."hetzner".ipv4.routes = [{
+        address = "42.0.0.0";
+        prefixLength = 8;
+      }]; */
       networking.interfaces."hetzner".ipv6.addresses = [{
         address = "fe42::254";
         prefixLength = 64;
       }];
+      /* networking.interfaces."hetzner".ipv6.routes = [{
+        address = "42::";
+        prefixLength = 8;
+      }]; */
       networking.interfaces."client".ipv4.addresses = [{
         address = "10.12.0.1";
         prefixLength = 16;
@@ -85,6 +99,7 @@ in
     router1 = { lib, ... }: {
       imports = [
         shared
+        ./test-tcpdump.nix
       ];
 
       networking.hostName = "router1";
@@ -101,6 +116,7 @@ in
     router2 = { lib, ... }: {
       imports = [
         shared
+        ./test-tcpdump.nix
       ];
 
       networking.hostName = "router2";
@@ -115,6 +131,7 @@ in
       }];
     };
     client = { lib, pkgs, ... }: {
+      virtualisation.vlans = [ 1 2 ];
       networking.vlans.client = {
         id = 2;
         interface = "eth1";
@@ -149,16 +166,28 @@ in
     start_all()
     router1.wait_for_unit("nginx.service")
     router2.wait_for_unit("nginx.service")
-    daemon.wait_for_unit("failover-daemon.service")
-    client.succeed("sleep 30s")
+    # router1.wait_for_unit("keepalived-boot-delay.timer")
+    # router2.wait_for_unit("keepalived-boot-delay.timer")
+    # router1.wait_for_unit("keepalived.service")
+    # router2.wait_for_unit("keepalived.service")
 
+    daemon.wait_for_unit("failover-daemon.service")
+
+    client.succeed("sleep 30s")
     client.wait_for_unit("network.target")
 
     with subtest("daemon works"):
       router1.succeed("curl -v http://10.42.0.254:9090")
 
-    with subtest("router1 is serving 10.42.0.1 and 42::1"):
-      client.succeed("curl 10.42.0.1 | grep server-router1")
+    with subtest("nginx running on local ips"):
+      daemon.succeed("curl 10.42.0.1 | grep server-router1")
+      daemon.succeed("curl [fe42::1] | grep server-router1")
+      daemon.succeed("curl 10.42.0.2 | grep server-router2")
+      daemon.succeed("curl [fe42::2] | grep server-router2")
+      daemon.succeed("sleep 2s")
+
+    with subtest("router1 is serving 42.0.0.1 and 42::1"):
+      client.succeed("curl 42.0.0.1 | grep server-router1")
       client.succeed("curl [42::1] | grep server-router1")
 
     with subtest("when router1 is offline router2 is serving 10.42.0.1 and 42::1"):
