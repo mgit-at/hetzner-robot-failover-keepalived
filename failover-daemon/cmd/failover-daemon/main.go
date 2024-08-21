@@ -12,14 +12,14 @@ import (
 type Token string
 
 type ServerConfig struct {
-	token    Token
-	main     IPSet
-	failover IPSet
+	Token    Token `json:"token"`
+	Main     IPSet `json:"main"`
+	Failover IPSet `json:"failover"`
 }
 
 type IPSet struct {
-	v4 netip.Addr
-	v6 netip.Addr
+	V4 netip.Addr `json:"v4"`
+	V6 netip.Addr `json:"v6"`
 }
 
 type Config struct {

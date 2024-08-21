@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -33,7 +34,7 @@ type Server struct {
 type IPState struct {
 	ident        string
 	token        Token
-	lock         sync.Locker
+	mu           sync.Mutex
 	targetServer *Server
 	server       *Server
 }
@@ -66,26 +67,32 @@ func Init(config Config) (*http.ServeMux, error) {
 	d.servers = map[int]*Server{}
 	d.serverIPs = map[netip.Addr]*Server{}
 
+	routing := new(IPRoute2)
+
 	for id, serverCfg := range config.Servers {
 		server := new(Server)
 		server.id = id
 		// TODO: assert version
-		server.v4 = serverCfg.main.v4
-		server.v6 = serverCfg.main.v6
+		server.v4 = serverCfg.Main.V4
+		server.v6 = serverCfg.Main.V6
 
 		d.servers[id] = server
 		d.serverIPs[server.v4] = server
 		d.serverIPs[server.v6] = server
 
-		d.ips[serverCfg.failover.v4] = new(IPState)
-		d.ips[serverCfg.failover.v4].token = serverCfg.token
-		d.ips[serverCfg.failover.v4].ident = "a" + strconv.Itoa(id)
-		d.ips[serverCfg.failover.v4].server = server
+		d.ips[serverCfg.Failover.V4] = new(IPState)
+		d.ips[serverCfg.Failover.V4].token = serverCfg.Token
+		d.ips[serverCfg.Failover.V4].ident = "a" + strconv.Itoa(id)
+		d.ips[serverCfg.Failover.V4].server = server
+		fmt.Printf("Server %d add failover %s (%s)\n", id,
+			serverCfg.Failover.V4.String(), d.ips[serverCfg.Failover.V4].ident)
 
-		d.ips[serverCfg.failover.v6] = new(IPState)
-		d.ips[serverCfg.failover.v6].token = serverCfg.token
-		d.ips[serverCfg.failover.v6].ident = "aaaa" + strconv.Itoa(id)
-		d.ips[serverCfg.failover.v6].server = server
+		d.ips[serverCfg.Failover.V6] = new(IPState)
+		d.ips[serverCfg.Failover.V6].token = serverCfg.Token
+		d.ips[serverCfg.Failover.V6].ident = "aaaa" + strconv.Itoa(id)
+		d.ips[serverCfg.Failover.V6].server = server
+		fmt.Printf("Server %d add failover %s (%s)\n", id,
+			serverCfg.Failover.V6.String(), d.ips[serverCfg.Failover.V6].ident)
 	}
 	commonHandleIP := func(w http.ResponseWriter, r *http.Request) (*netip.Addr, *IPState) {
 		ipStr := r.PathValue("ip")
@@ -94,6 +101,8 @@ func Init(config Config) (*http.ServeMux, error) {
 			BadRequest(w, "No valid IP")
 			return nil, nil
 		}
+
+		fmt.Printf("Lookup %s\n", ip.String())
 
 		ipState := d.ips[ip]
 		if ipState == nil {
@@ -149,8 +158,8 @@ func Init(config Config) (*http.ServeMux, error) {
 				return
 			}
 
-			ipState.lock.Lock()
-			defer ipState.lock.Unlock()
+			ipState.mu.Lock()
+			defer ipState.mu.Unlock()
 
 			ipState.targetServer = newTargetServer
 
@@ -161,6 +170,13 @@ func Init(config Config) (*http.ServeMux, error) {
 				res.ActiveServerIp = newTargetServer.v6.String()
 			}
 
+			err = routing.ReplaceRoute(*ip, newTargetIP)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Could not replace route"))
+				return
+			}
+
 			SendRes(w, res)
 			return
 		}
@@ -168,13 +184,20 @@ func Init(config Config) (*http.ServeMux, error) {
 	mux.HandleFunc("DELETE /{ip}", func(w http.ResponseWriter, r *http.Request) {
 		ip, ipState := commonHandleIP(w, r)
 		if ipState != nil {
-			ipState.lock.Lock()
-			defer ipState.lock.Unlock()
+			ipState.mu.Lock()
+			defer ipState.mu.Unlock()
 
 			ipState.targetServer = nil
 
 			res := MakeCommonRes(ip, ipState)
 			res.ActiveServerIp = ""
+
+			err := routing.RemoveRoute(*ip)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Could not remove route"))
+				return
+			}
 
 			SendRes(w, res)
 			return
