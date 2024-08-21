@@ -143,3 +143,4 @@ pip-selfcheck.json
 # End of https://www.gitignore.io/api/code,python
 
 config.json
+.idea
