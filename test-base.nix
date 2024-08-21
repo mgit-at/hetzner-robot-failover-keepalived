@@ -16,18 +16,18 @@
       keepaliveInterface = "hetzner";
       floatingIPs = [
         { ip = "42.0.0.1"; router = 1; }
-        { ip = "42::1"; router = 1; }
+        { ip = "42::1:"; router = 1; } # will be 42::1:2
         { ip = "42.0.0.2"; router = 2; }
-        { ip = "42::2"; router = 2; }
+        { ip = "42::2:"; router = 2; } # will be 42::2:2
       ];
       mainIPs = {
         "1" = {
           ipv4 = "10.42.0.1";
-          ipv6 = "fe42::1";
+          ipv6 = "fe42::1:"; # will be fe42::1:2
         };
         "2" = {
           ipv4 = "10.42.0.2";
-          ipv6 = "fe42::2";
+          ipv6 = "fe42::2:"; # will be fe42::2:2
         };
       };
       urlFloating = "http://10.42.0.254/{0}";
@@ -61,14 +61,5 @@
       default = true;
       locations."/".return = "200 server-${config.networking.hostName}";
     };
-  };
-
-  systemd.services.tcpdump = {
-    path = with pkgs; [ tcpdump ];
-    script = ''
-      tcpdump -lni any '(net 10.42.0.0/16 or net fe42::/64 or net 42.0.0.0/8 or net 42::/16) and tcp'
-    '';
-    wantedBy = [ "multi-user.target" ];
-    after = [ "network.target" ];
   };
 }

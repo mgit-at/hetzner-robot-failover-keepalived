@@ -74,22 +74,22 @@ in
               token = "1234";
               main = {
                 v4 = "10.42.0.1";
-                v6 = "fe42::1";
+                v6 = "fe42::1:2";
               };
               failover = {
                 v4 = "42.0.0.1";
-                v6 = "42::1";
+                v6 = "42::1:2";
               };
             };
             "2" = {
               token = "1234";
               main = {
                 v4 = "10.42.0.2";
-                v6 = "fe42::2";
+                v6 = "fe42::2:2";
               };
               failover = {
                 v4 = "42.0.0.2";
-                v6 = "42::2";
+                v6 = "42::2:2";
               };
             };
           };
@@ -110,7 +110,7 @@ in
         prefixLength = 16;
       }];
       networking.interfaces."hetzner".ipv6.addresses = [{
-        address = "fe42::1";
+        address = "fe42::1:2";
         prefixLength = 64;
       }];
     };
@@ -127,7 +127,7 @@ in
         prefixLength = 16;
       }];
       networking.interfaces."hetzner".ipv6.addresses = [{
-        address = "fe42::2";
+        address = "fe42::2:2";
         prefixLength = 64;
       }];
     };
@@ -186,18 +186,23 @@ in
 
     with subtest("nginx running on local ips"):
       daemon.succeed("curl 10.42.0.1 | grep server-router1")
-      daemon.succeed("curl [fe42::1] | grep server-router1")
+      daemon.succeed("curl [fe42::1:2] | grep server-router1")
       daemon.succeed("curl 10.42.0.2 | grep server-router2")
-      daemon.succeed("curl [fe42::2] | grep server-router2")
+      daemon.succeed("curl [fe42::2:2] | grep server-router2")
       daemon.succeed("sleep 2s")
 
-    with subtest("router1 is serving 42.0.0.1 and 42::1"):
+    with subtest("router1 is serving 42.0.0.1 and 42::1:2"):
       daemon.succeed("ip route replace 42.0.0.1 via 10.42.0.1")
+      daemon.succeed("ip -6 route replace 42::1:2 via fe42::1:2")
+      daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
+      daemon.succeed("ping -6 42::1:2 -w 1 -c 1")
       client.succeed("curl 42.0.0.1 | grep server-router1")
-      client.succeed("curl [42::1] | grep server-router1")
+      client.succeed("sleep 2s")
+      client.succeed("curl [42::1:2] | grep server-router1")
+      client.succeed("sleep 2s")
 
     with subtest("when router1 is offline router2 is serving 10.42.0.1 and 42::1"):
-      client.succeed("curl 10.42.0.1 | grep server-router2")
-      client.succeed("curl [42::1] | grep server-router2")
+      client.succeed("curl 42.0.0.1 | grep server-router2")
+      client.succeed("curl [42::1:2] | grep server-router2")
   '';
 }
