@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
-	"strconv"
 	"sync"
 )
 
@@ -32,7 +31,6 @@ type Server struct {
 }
 
 type IPState struct {
-	ident        string
 	token        Token
 	mu           sync.Mutex
 	targetServer *Server
@@ -82,18 +80,28 @@ func Init(config Config) (*http.ServeMux, error) {
 
 		d.ips[serverCfg.Failover.V4] = new(IPState)
 		d.ips[serverCfg.Failover.V4].token = serverCfg.Token
-		d.ips[serverCfg.Failover.V4].ident = "a" + strconv.Itoa(id)
 		d.ips[serverCfg.Failover.V4].server = server
-		fmt.Printf("Server %d add failover %s (%s)\n", id,
-			serverCfg.Failover.V4.String(), d.ips[serverCfg.Failover.V4].ident)
+		fmt.Printf("Server %d add failover %s\n", id,
+			serverCfg.Failover.V4.String())
 
 		d.ips[serverCfg.Failover.V6] = new(IPState)
 		d.ips[serverCfg.Failover.V6].token = serverCfg.Token
-		d.ips[serverCfg.Failover.V6].ident = "aaaa" + strconv.Itoa(id)
 		d.ips[serverCfg.Failover.V6].server = server
-		fmt.Printf("Server %d add failover %s (%s)\n", id,
-			serverCfg.Failover.V6.String(), d.ips[serverCfg.Failover.V6].ident)
+		fmt.Printf("Server %d add failover %s\n", id,
+			serverCfg.Failover.V6.String())
 	}
+
+	for ip, ipState := range d.ips {
+		current, err := routing.GetRoute(ip)
+		if err != nil {
+			return nil, err
+		}
+
+		if d.serverIPs[*current] != nil {
+			ipState.targetServer = d.serverIPs[*current]
+		}
+	}
+
 	commonHandleIP := func(w http.ResponseWriter, r *http.Request) (*netip.Addr, *IPState) {
 		ipStr := r.PathValue("ip")
 		ip, err := netip.ParseAddr(ipStr)
