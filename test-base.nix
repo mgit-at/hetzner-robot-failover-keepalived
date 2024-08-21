@@ -39,6 +39,15 @@
     firewall.allowedTCPPorts = [ 80 ];
   };
 
+  networking.defaultGateway = {
+    interface = "hetzner";
+    address = "10.42.0.254";
+  };
+  networking.defaultGateway6 = {
+    interface = "hetzner";
+    address = "fe42::254";
+  };
+
   services.nginx = {
     enable = true;
     virtualHosts.default = {

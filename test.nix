@@ -9,8 +9,15 @@ in
 {
   name = "mgit-robot-failover";
 
-  # 10.42.0.x -> the "failover ips"
-  # 10.42.10.x -> debug/internal
+  # 42.0.0.0/8 failover IPs
+  # 42::/8     failover IPs
+  # 10.42.0.0/24 internal
+  # fe42::/64    internal
+
+  # client routes to daemon
+  # daemon has via routes that forward traffic to router
+  # routers have global routes to push traffic (back) out to daemon
+  # daemon will route using 12::/8 route back to client
 
   nodes = {
     daemon = { lib, ... }: {
@@ -37,6 +44,8 @@ in
       networking = {
         nftables.enable = true;
         firewall.allowedTCPPorts = [ 9090 ];
+        firewall.filterForward = true;
+        firewall.extraForwardRules = "accept";
       };
 
       networking.hostName = "daemon";
@@ -44,21 +53,13 @@ in
         address = "10.42.0.254";
         prefixLength = 16;
       }];
-      /* networking.interfaces."hetzner".ipv4.routes = [{
-        address = "42.0.0.0";
-        prefixLength = 8;
-      }]; */
       networking.interfaces."hetzner".ipv6.addresses = [{
         address = "fe42::254";
         prefixLength = 64;
       }];
-      /* networking.interfaces."hetzner".ipv6.routes = [{
-        address = "42::";
-        prefixLength = 8;
-      }]; */
       networking.interfaces."client".ipv4.addresses = [{
-        address = "10.12.0.1";
-        prefixLength = 16;
+        address = "12.0.0.1";
+        prefixLength = 8;
       }];
       networking.interfaces."client".ipv6.addresses = [{
         address = "12::1";
@@ -137,13 +138,13 @@ in
         interface = "eth1";
       };
       networking.interfaces."client".ipv4.addresses = [{
-        address = "10.12.0.2";
-        prefixLength = 16;
+        address = "12.0.0.2";
+        prefixLength = 8;
       }];
       networking.interfaces."client".ipv4.routes = [{
         address = "42.0.0.0";
         prefixLength = 8;
-        via = "10.12.0.1";
+        via = "12.0.0.1";
       }];
       networking.interfaces."client".ipv6.addresses = [{
         address = "12::2";
@@ -187,6 +188,7 @@ in
       daemon.succeed("sleep 2s")
 
     with subtest("router1 is serving 42.0.0.1 and 42::1"):
+      daemon.succeed("ip route replace 42.0.0.1 via 10.42.0.1")
       client.succeed("curl 42.0.0.1 | grep server-router1")
       client.succeed("curl [42::1] | grep server-router1")
 
