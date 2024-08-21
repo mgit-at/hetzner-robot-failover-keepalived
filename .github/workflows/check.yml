@@ -16,4 +16,4 @@ jobs:
         with:
           # explicitly enable sandbox
           extra_nix_config: sandbox = true
-      - run: nix flake check
+      - run: nix flake check -L
