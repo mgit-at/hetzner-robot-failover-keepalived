@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"sync"
 )
 
@@ -33,37 +35,57 @@ type IPState struct {
 	token        Token
 	lock         sync.Locker
 	targetServer *Server
+	server       *Server
 }
 
 func BadRequest(w http.ResponseWriter, why string) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
+func MakeCommonRes(addr *netip.Addr, state *IPState) CommonResponse {
+	res := CommonResponse{}
+	res.Ip = addr.String()
+	res.Netmask = addr.Zone()
+	res.ServerIp = state.server.v4.String()
+	res.ServerIpv6Net = state.server.v6.String()
+	res.Status = "ready"
+	res.ServerNumber = state.server.id
+
+	return res
+}
+
+func SendRes(w http.ResponseWriter, res CommonResponse) {
+	w.WriteHeader(200)
+	enc := json.NewEncoder(w)
+	enc.Encode(res)
+}
+
 func Init(config Config) (*http.ServeMux, error) {
 	d := new(Daemon)
-
-	for ipStr, token := range config.IPs {
-		ip, err := netip.ParseAddr(ipStr)
-		if err != nil {
-			return nil, err
-		}
-		state := new(IPState)
-		state.ident = ip.StringExpanded()
-		state.token = token
-		state.targetServer = nil
-		d.ips[ip] = state
-	}
+	d.ips = map[netip.Addr]*IPState{}
+	d.servers = map[int]*Server{}
+	d.serverIPs = map[netip.Addr]*Server{}
 
 	for id, serverCfg := range config.Servers {
 		server := new(Server)
 		server.id = id
 		// TODO: assert version
-		server.v4 = serverCfg.v4
-		server.v6 = serverCfg.v6
+		server.v4 = serverCfg.main.v4
+		server.v6 = serverCfg.main.v6
 
 		d.servers[id] = server
 		d.serverIPs[server.v4] = server
 		d.serverIPs[server.v6] = server
+
+		d.ips[serverCfg.failover.v4] = new(IPState)
+		d.ips[serverCfg.failover.v4].token = serverCfg.token
+		d.ips[serverCfg.failover.v4].ident = "a" + strconv.Itoa(id)
+		d.ips[serverCfg.failover.v4].server = server
+
+		d.ips[serverCfg.failover.v6] = new(IPState)
+		d.ips[serverCfg.failover.v6].token = serverCfg.token
+		d.ips[serverCfg.failover.v6].ident = "aaaa" + strconv.Itoa(id)
+		d.ips[serverCfg.failover.v6].server = server
 	}
 	commonHandleIP := func(w http.ResponseWriter, r *http.Request) (*netip.Addr, *IPState) {
 		ipStr := r.PathValue("ip")
@@ -88,16 +110,17 @@ func Init(config Config) (*http.ServeMux, error) {
 	mux.HandleFunc("GET /{ip}", func(w http.ResponseWriter, r *http.Request) {
 		ip, ipState := commonHandleIP(w, r)
 		if ipState != nil {
-			res := new(CommonResponse)
-			res.Ip = ip.String()
+			res := MakeCommonRes(ip, ipState)
 			if ipState.targetServer != nil {
 				if ip.Is4() {
 					res.ActiveServerIp = ipState.targetServer.v4.String()
 				} else {
 					res.ActiveServerIp = ipState.targetServer.v6.String()
 				}
-				res.ServerNumber = ipState.targetServer.id
 			}
+
+			SendRes(w, res)
+			return
 		}
 	})
 	mux.HandleFunc("POST /{ip}", func(w http.ResponseWriter, r *http.Request) {
@@ -121,10 +144,25 @@ func Init(config Config) (*http.ServeMux, error) {
 			}
 
 			newTargetServer := d.serverIPs[newTargetIP]
+			if newTargetServer == nil {
+				BadRequest(w, "Target IP not a valid server")
+				return
+			}
+
 			ipState.lock.Lock()
 			defer ipState.lock.Unlock()
 
 			ipState.targetServer = newTargetServer
+
+			res := MakeCommonRes(ip, ipState)
+			if ip.Is4() {
+				res.ActiveServerIp = newTargetServer.v4.String()
+			} else {
+				res.ActiveServerIp = newTargetServer.v6.String()
+			}
+
+			SendRes(w, res)
+			return
 		}
 	})
 	mux.HandleFunc("DELETE /{ip}", func(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +172,12 @@ func Init(config Config) (*http.ServeMux, error) {
 			defer ipState.lock.Unlock()
 
 			ipState.targetServer = nil
+
+			res := MakeCommonRes(ip, ipState)
+			res.ActiveServerIp = ""
+
+			SendRes(w, res)
+			return
 		}
 	})
 

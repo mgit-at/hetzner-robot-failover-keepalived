@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
@@ -11,19 +12,24 @@ import (
 type Token string
 
 type ServerConfig struct {
+	token    Token
+	main     IPSet
+	failover IPSet
+}
+
+type IPSet struct {
 	v4 netip.Addr
 	v6 netip.Addr
 }
 
 type Config struct {
-	Listen  string           `json:"listen"`
-	IPs     map[string]Token `json:"ips"`
+	Listen  string `json:"listen"`
 	Servers map[int]ServerConfig
 }
 
 func main() {
-	config := os.Args[1]
-	file, err := os.Open(config)
+	configPath := os.Args[1]
+	file, err := os.Open(configPath)
 	if err != nil {
 		panic(err)
 	}
@@ -39,9 +45,14 @@ func main() {
 		panic(err)
 	}
 
-	http.ListenAndServe()
+	mux, err := Init(config)
+	if err != nil {
+		panic(err)
+	}
 
-	/*http.Server{Addr: }
-	http.ListenAndServe()*/
-
+	fmt.Printf("Listening on %s\n", config.Listen)
+	err = http.ListenAndServe(config.Listen, mux)
+	if err != nil {
+		panic(err)
+	}
 }
