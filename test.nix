@@ -63,7 +63,7 @@ in
       }];
       networking.interfaces."client".ipv6.addresses = [{
         address = "12::1";
-        prefixLength = 8;
+        prefixLength = 16;
       }];
 
       services.failover-daemon = {
@@ -152,13 +152,21 @@ in
       }];
       networking.interfaces."client".ipv6.addresses = [{
         address = "12::2";
-        prefixLength = 8;
+        prefixLength = 16;
       }];
       networking.interfaces."client".ipv6.routes = [{
         address = "42::";
-        prefixLength = 8;
+        prefixLength = 16;
         via = "12::1";
       }];
+      networking.defaultGateway = {
+        interface = "client";
+        address = "12.0.0.1";
+      };
+      networking.defaultGateway6 = {
+        interface = "client";
+        address = "12::1";
+      };
       networking.hostName = "client";
       environment.systemPackages = with pkgs; [
         curl
@@ -190,6 +198,12 @@ in
       daemon.succeed("curl 10.42.0.2 | grep server-router2")
       daemon.succeed("curl [fe42::2:2] | grep server-router2")
       daemon.succeed("sleep 2s")
+
+    # TODO: we can specify this in interface config
+    with subtest("[workarround] replace default ipv6 router"):
+      # qemu seems to advertise something via ra, let's replace it
+      router1.succeed("ip -6 r r default via fe42::254 metric 50")
+      router2.succeed("ip -6 r r default via fe42::254 metric 50")
 
     with subtest("router1 is serving 42.0.0.1 and 42::1:2"):
       daemon.succeed("ip route replace 42.0.0.1 via 10.42.0.1")

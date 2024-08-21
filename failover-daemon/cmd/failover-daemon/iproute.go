@@ -16,7 +16,7 @@ type IPRoute2 struct {
 var findVia = regexp.MustCompile(`via ([0-9a-f\[.:]+)`)
 
 func (r *IPRoute2) exec(cmdstr ...string) error {
-	fmt.Sprintf("[iproute] exec ip %s\n", cmdstr)
+	fmt.Printf("[iproute] exec ip %s\n", cmdstr)
 	cmd := exec.Command("ip", cmdstr...)
 	if errors.Is(cmd.Err, exec.ErrDot) {
 		cmd.Err = nil
@@ -55,7 +55,7 @@ func (r *IPRoute2) GetRoute(failoverIP netip.Addr) (*netip.Addr, error) {
 
 	cmdstr := r.fmt(failoverIP, "route", "get", failoverIP.String())
 
-	fmt.Sprintf("[iproute] exec ip %s\n", cmdstr)
+	fmt.Printf("[iproute] exec ip %s\n", cmdstr)
 	out, err := exec.Command("ip", cmdstr...).Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

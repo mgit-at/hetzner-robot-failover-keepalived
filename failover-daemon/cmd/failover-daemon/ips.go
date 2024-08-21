@@ -102,7 +102,7 @@ func Init(config Config) (*http.ServeMux, error) {
 		}
 
 		if d.serverIPs[*current] != nil {
-			fmt.Sprintf("Imported: %s points to %s\n", ip, *current)
+			fmt.Printf("Imported: %s points to %s\n", ip, *current)
 			ipState.targetServer = d.serverIPs[*current]
 		}
 	}
@@ -115,13 +115,15 @@ func Init(config Config) (*http.ServeMux, error) {
 			return nil, nil
 		}
 
-		fmt.Printf("Lookup %s\n", ip.String())
+		fmt.Printf("%s /%s\n", r.Method, ip.String())
 
 		ipState := d.ips[ip]
 		if ipState == nil {
 			http.NotFound(w, r)
 			return nil, nil
 		}
+
+		// TODO: check auth
 
 		return &ip, ipState
 	}

@@ -30,7 +30,7 @@
           ipv6 = "fe42::2:"; # will be fe42::2:2
         };
       };
-      urlFloating = "http://10.42.0.254/{0}";
+      urlFloating = "http://10.42.0.254:9090/{0}";
       robotAuths = {
         "1" = "1:1234";
         "2" = "2:1234";
