@@ -7,3 +7,4 @@ hasn't been tested, need following changes
 - set state.targetServer AFTER route change command succeeded
 - maybe not store state in memory but fetch on-demand
 - different providers (switch routing APIs) and config for each provider
+- needs webinterface and audit log
