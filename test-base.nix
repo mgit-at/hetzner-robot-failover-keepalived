@@ -39,6 +39,7 @@
   };
 
   systemd.services.keepalived.environment.FORCE_DEBUG_FAILOVER = "1";
+  systemd.timers.keepalived-boot-delay.enable = false;
 
   networking = {
     nftables.enable = true;

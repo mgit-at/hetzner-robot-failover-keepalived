@@ -169,14 +169,12 @@ in
     start_all()
     router1.wait_for_unit("nginx.service")
     router2.wait_for_unit("nginx.service")
-    # router1.wait_for_unit("keepalived-boot-delay.timer")
-    # router2.wait_for_unit("keepalived-boot-delay.timer")
-    # router1.wait_for_unit("keepalived.service")
-    # router2.wait_for_unit("keepalived.service")
+    router1.wait_for_unit("multi-user.target")
+    router2.wait_for_unit("multi-user.target")
+    router1.succeed("systemctl start keepalived")
+    router2.succeed("systemctl start keepalived")
 
     daemon.wait_for_unit("failover-daemon.service")
-
-    client.succeed("sleep 44s")
     client.wait_for_unit("network.target")
 
     with subtest("daemon works"):
@@ -198,6 +196,8 @@ in
 
     with subtest("router1 is serving 42.0.0.1 and 42:1::2"):
       router1.succeed("systemctl restart keepalived")
+      router1.succeed("sleep 2s")
+      router1.wait_until_succeeds("ip a s hetzner to 42:1::2")
       router1.succeed("sleep 10s")
       daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
       daemon.succeed("ping -6 42:1::2 -w 1 -c 1")
@@ -209,6 +209,8 @@ in
     with subtest("when router1 is offline router2 is serving 10.42.0.1 and 42:1::2"):
       router1.shutdown()
       router2.succeed("systemctl restart keepalived")
+      router2.succeed("sleep 2s")
+      router2.wait_until_succeeds("ip a s hetzner to 42:1::2")
       router2.succeed("sleep 10s")
       daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
       daemon.succeed("ping -6 42:1::2 -w 1 -c 1")
