@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
+	"os"
 	"strconv"
 	"sync"
 )
@@ -17,13 +18,13 @@ type Daemon struct {
 }
 
 type CommonResponse struct {
-	Ip             string `json:"ip"`
-	Netmask        string `json:"netmask"`
-	Status         string `json:"status"`
-	ServerIp       string `json:"server_ip"`
-	ServerIpv6Net  string `json:"server_ipv6_net"`
-	ServerNumber   int    `json:"server_number"`
-	ActiveServerIp string `json:"active_server_ip"`
+	Ip             string  `json:"ip"`
+	Netmask        string  `json:"netmask"`
+	Status         string  `json:"status"`
+	ServerIp       string  `json:"server_ip"`
+	ServerIpv6Net  string  `json:"server_ipv6_net"`
+	ServerNumber   int     `json:"server_number"`
+	ActiveServerIp *string `json:"active_server_ip"`
 }
 
 type Server struct {
@@ -39,16 +40,83 @@ type IPState struct {
 	server       *Server
 }
 
+type MessageError struct {
+	Status  int    `json:"status"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type Message struct {
+	Error *MessageError `json:"error,omitempty"`
+}
+
+func SendJSON(w http.ResponseWriter, msg any) {
+	enc := json.NewEncoder(w)
+	enc.Encode(msg)
+}
+
 func BadRequest(w http.ResponseWriter, why string) {
 	fmt.Printf("[BadRequest] %s\n", why)
 	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte(why))
+
+	SendJSON(w, Message{
+		Error: &MessageError{
+			Status:  http.StatusBadRequest,
+			Code:    "BAD_REQUEST",
+			Message: why,
+		},
+	})
+}
+
+func NotFound(w http.ResponseWriter) {
+	// {"error":{"status":404,"code":"NOT_FOUND","message":"Not Found"}}
+	w.WriteHeader(http.StatusNotFound)
+
+	SendJSON(w, Message{
+		Error: &MessageError{
+			Status:  http.StatusNotFound,
+			Code:    "NOT_FOUND",
+			Message: "Not Found",
+		},
+	})
+}
+
+func Unauthorized(w http.ResponseWriter, why string) {
+	// {"error":{"status":401,"code":"UNAUTHORIZED","message":"Unauthorized"}}
+	fmt.Printf("[Unauthorized] %s\n", why)
+	w.WriteHeader(http.StatusUnauthorized)
+
+	SendJSON(w, Message{
+		Error: &MessageError{
+			Status:  http.StatusUnauthorized,
+			Code:    "UNAUTHORIZED",
+			Message: why,
+		},
+	})
+}
+
+func Conflict(w http.ResponseWriter, code string, why string) {
+	// {"error":{"status":401,"code":"UNAUTHORIZED","message":"Unauthorized"}}
+	fmt.Printf("[Unauthorized] %s\n", why)
+	w.WriteHeader(http.StatusConflict)
+
+	SendJSON(w, Message{
+		Error: &MessageError{
+			Status:  http.StatusConflict,
+			Code:    code,
+			Message: why,
+		},
+	})
 }
 
 func MakeCommonRes(addr *netip.Addr, state *IPState) CommonResponse {
 	res := CommonResponse{}
 	res.Ip = addr.String()
-	res.Netmask = addr.Zone()
+	if addr.Is4() {
+		res.Netmask = "255.255.255.255"
+	} else {
+		res.Netmask = "ffff:ffff:ffff:ffff::"
+	}
 	res.ServerIp = state.server.v4.String()
 	res.ServerIpv6Net = state.server.v6.String()
 	res.Status = "ready"
@@ -57,10 +125,16 @@ func MakeCommonRes(addr *netip.Addr, state *IPState) CommonResponse {
 	return res
 }
 
+type FailoverMessage struct {
+	Res CommonResponse `json:"failover"`
+}
+
 func SendRes(w http.ResponseWriter, res CommonResponse) {
 	w.WriteHeader(200)
 	enc := json.NewEncoder(w)
-	enc.Encode(res)
+	enc.Encode(FailoverMessage{
+		Res: res,
+	})
 }
 
 const authBasic = "Basic "
@@ -71,7 +145,13 @@ func Init(config Config) (*http.ServeMux, error) {
 	d.servers = map[int]*Server{}
 	d.serverIPs = map[netip.Addr]*Server{}
 
-	routing := new(IPRoute2)
+	var routing Routing
+
+	routing = NewIPRoute2()
+	if os.Getenv("SLOW_ROUTING") != "" {
+		fmt.Printf("Slow route changes enabled!\n")
+		routing = NewSlowRouting(routing)
+	}
 
 	for id, serverCfg := range config.Servers {
 		server := new(Server)
@@ -125,37 +205,37 @@ func Init(config Config) (*http.ServeMux, error) {
 
 		ipState := d.ips[ip]
 		if ipState == nil {
-			http.NotFound(w, r)
+			NotFound(w)
 			return nil, nil
 		}
 
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
-			BadRequest(w, "Auth empty")
+			Unauthorized(w, "Auth empty")
 			return nil, nil
 		}
 
 		if auth[0:len(authBasic)] != authBasic {
-			BadRequest(w, "Auth not basic")
+			Unauthorized(w, "Auth not basic")
 			return nil, nil
 		}
 
 		authCreds, err := base64.StdEncoding.DecodeString(auth[len(authBasic):])
 		if err != nil {
-			BadRequest(w, "Auth decode failed")
+			Unauthorized(w, "Auth decode failed")
 			return nil, nil
 		}
 
 		compAuth := strconv.Itoa(ipState.server.id) + ":" + string(ipState.token)
 		if compAuth != string(authCreds) {
-			BadRequest(w, "Auth wrong")
+			Unauthorized(w, "Auth wrong")
 			return nil, nil
 		}
 
 		return &ip, ipState
 	}
 
-	// NOTE: must match hetzner's API
+	// NOTE: must match Hetzner's API
 	// See https://robot.hetzner.com/doc/webservice/de.html#failover
 	mux := http.ServeMux{}
 	mux.HandleFunc("GET /{ip}", func(w http.ResponseWriter, r *http.Request) {
@@ -164,10 +244,20 @@ func Init(config Config) (*http.ServeMux, error) {
 			res := MakeCommonRes(ip, ipState)
 			if ipState.targetServer != nil {
 				if ip.Is4() {
-					res.ActiveServerIp = ipState.targetServer.v4.String()
+					v4 := ipState.targetServer.v4.String()
+					res.ActiveServerIp = &v4
 				} else {
-					res.ActiveServerIp = ipState.targetServer.v6.String()
+					v6 := ipState.targetServer.v6.String()
+					res.ActiveServerIp = &v6
 				}
+			}
+
+			// "processing" when state.mu.TryLock() -> false
+			lockSuccess := ipState.mu.TryLock()
+			if lockSuccess {
+				ipState.mu.Unlock()
+			} else {
+				res.Status = "processing"
 			}
 
 			SendRes(w, res)
@@ -200,16 +290,29 @@ func Init(config Config) (*http.ServeMux, error) {
 				return
 			}
 
-			ipState.mu.Lock()
+			if ipState.targetServer != nil && ipState.targetServer.id == newTargetServer.id {
+				// {"error":{"status":409,"code":"FAILOVER_ALREADY_ROUTED","message":"The failover ip is already routed to the selected server"}}
+				Conflict(w, "FAILOVER_ALREADY_ROUTED", "The failover ip is already routed to the selected server")
+				return
+			}
+
+			if !ipState.mu.TryLock() {
+				// {"error":{"status":409,"code":"FAILOVER_LOCKED","message":"The failover ip can not be set up due to an active lock."}}
+				Conflict(w, "FAILOVER_LOCKED", "The failover ip can not be set up due to an active lock.")
+				return
+			}
+
 			defer ipState.mu.Unlock()
 
 			ipState.targetServer = newTargetServer
 
 			res := MakeCommonRes(ip, ipState)
 			if ip.Is4() {
-				res.ActiveServerIp = newTargetServer.v4.String()
+				v4 := newTargetServer.v4.String()
+				res.ActiveServerIp = &v4
 			} else {
-				res.ActiveServerIp = newTargetServer.v6.String()
+				v6 := newTargetServer.v6.String()
+				res.ActiveServerIp = &v6
 			}
 
 			err = routing.ReplaceRoute(*ip, newTargetIP)
@@ -227,13 +330,17 @@ func Init(config Config) (*http.ServeMux, error) {
 	mux.HandleFunc("DELETE /{ip}", func(w http.ResponseWriter, r *http.Request) {
 		ip, ipState := commonHandleIP(w, r)
 		if ipState != nil {
-			ipState.mu.Lock()
+			if !ipState.mu.TryLock() {
+				Conflict(w, "FAILOVER_LOCKED", "The failover ip can not be set up due to an active lock.")
+				return
+			}
 			defer ipState.mu.Unlock()
+
+			// Double-delete is a no-op on Hetzner, so it's a no-op here aswell
 
 			ipState.targetServer = nil
 
 			res := MakeCommonRes(ip, ipState)
-			res.ActiveServerIp = ""
 
 			err := routing.RemoveRoute(*ip)
 			if err != nil {

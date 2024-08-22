@@ -9,13 +9,17 @@ import (
 	"sync"
 )
 
-type IPRoute2 struct {
+type ipRoute2 struct {
 	mu sync.Mutex
+}
+
+func NewIPRoute2() Routing {
+	return &ipRoute2{}
 }
 
 var findVia = regexp.MustCompile(`via ([0-9a-f\[.:]+)`)
 
-func (r *IPRoute2) exec(cmdstr ...string) error {
+func (r *ipRoute2) exec(cmdstr ...string) error {
 	fmt.Printf("[iproute] exec ip %s\n", cmdstr)
 	cmd := exec.Command("ip", cmdstr...)
 	if errors.Is(cmd.Err, exec.ErrDot) {
@@ -25,7 +29,7 @@ func (r *IPRoute2) exec(cmdstr ...string) error {
 	return cmd.Run()
 }
 
-func (r *IPRoute2) fmt(ip netip.Addr, cmdstr ...string) []string {
+func (r *ipRoute2) fmt(ip netip.Addr, cmdstr ...string) []string {
 	if ip.Is4() {
 		return cmdstr
 	} else {
@@ -33,7 +37,7 @@ func (r *IPRoute2) fmt(ip netip.Addr, cmdstr ...string) []string {
 	}
 }
 
-func (r *IPRoute2) ip(ip netip.Addr) string {
+func (r *ipRoute2) ip(ip netip.Addr) string {
 	str := ip.String()
 
 	if str[len(str)-1] == ':' {
@@ -43,7 +47,7 @@ func (r *IPRoute2) ip(ip netip.Addr) string {
 	return str
 }
 
-func (r *IPRoute2) ReplaceRoute(failoverIP netip.Addr, targetIP netip.Addr) error {
+func (r *ipRoute2) ReplaceRoute(failoverIP netip.Addr, targetIP netip.Addr) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -51,7 +55,7 @@ func (r *IPRoute2) ReplaceRoute(failoverIP netip.Addr, targetIP netip.Addr) erro
 		"route", "replace", r.ip(failoverIP), "via", r.ip(targetIP))...)
 }
 
-func (r *IPRoute2) RemoveRoute(failoverIP netip.Addr) error {
+func (r *ipRoute2) RemoveRoute(failoverIP netip.Addr) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -59,11 +63,11 @@ func (r *IPRoute2) RemoveRoute(failoverIP netip.Addr) error {
 		"route", "delete", r.ip(failoverIP))...)
 }
 
-func (r *IPRoute2) GetRoute(failoverIP netip.Addr) (*netip.Addr, error) {
+func (r *ipRoute2) GetRoute(failoverIP netip.Addr) (*netip.Addr, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	cmdstr := r.fmt(failoverIP, "route", "get", r.ip(failoverIP))
+	cmdstr := r.fmt(failoverIP, "route", "show", r.ip(failoverIP))
 
 	fmt.Printf("[iproute] exec ip %s\n", cmdstr)
 	out, err := exec.Command("ip", cmdstr...).Output()
