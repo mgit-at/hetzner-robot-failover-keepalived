@@ -195,9 +195,10 @@ in
       router2.succeed("ip -6 r r default via fe42::254 metric 50")
 
     with subtest("router1 is serving 42.0.0.1 and 42:1::2"):
+      router1.succeed("ip a d dev hetzner 42:1::2 || true")
       router1.succeed("systemctl restart keepalived")
       router1.succeed("sleep 2s")
-      router1.wait_until_succeeds("ip a s hetzner to 42:1::2")
+      router1.wait_until_succeeds("ip a s hetzner to 42:1::2 | grep hetzner")
       router1.succeed("sleep 10s")
       daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
       daemon.succeed("ping -6 42:1::2 -w 1 -c 1")
@@ -208,9 +209,10 @@ in
 
     with subtest("when router1 is offline router2 is serving 10.42.0.1 and 42:1::2"):
       router1.shutdown()
+      router2.succeed("ip a d dev hetzner 42:1::2 || true")
       router2.succeed("systemctl restart keepalived")
       router2.succeed("sleep 2s")
-      router2.wait_until_succeeds("ip a s hetzner to 42:1::2")
+      router2.wait_until_succeeds("ip a s hetzner to 42:1::2 | grep hetzner")
       router2.succeed("sleep 10s")
       daemon.succeed("ping 42.0.0.1 -w 1 -c 1")
       daemon.succeed("ping -6 42:1::2 -w 1 -c 1")
