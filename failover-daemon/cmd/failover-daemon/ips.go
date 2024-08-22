@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"sync"
 )
 
@@ -60,6 +62,8 @@ func SendRes(w http.ResponseWriter, res CommonResponse) {
 	enc := json.NewEncoder(w)
 	enc.Encode(res)
 }
+
+const authBasic = "Basic "
 
 func Init(config Config) (*http.ServeMux, error) {
 	d := new(Daemon)
@@ -125,7 +129,28 @@ func Init(config Config) (*http.ServeMux, error) {
 			return nil, nil
 		}
 
-		// TODO: check auth
+		auth := r.Header.Get("Authorization")
+		if auth == "" {
+			BadRequest(w, "Auth empty")
+			return nil, nil
+		}
+
+		if auth[0:len(authBasic)] != authBasic {
+			BadRequest(w, "Auth not basic")
+			return nil, nil
+		}
+
+		authCreds, err := base64.StdEncoding.DecodeString(auth[len(authBasic):])
+		if err != nil {
+			BadRequest(w, "Auth decode failed")
+			return nil, nil
+		}
+
+		compAuth := strconv.Itoa(ipState.server.id) + ":" + string(ipState.token)
+		if compAuth != string(authCreds) {
+			BadRequest(w, "Auth wrong")
+			return nil, nil
+		}
 
 		return &ip, ipState
 	}
