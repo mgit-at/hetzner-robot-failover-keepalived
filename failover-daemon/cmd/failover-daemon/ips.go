@@ -96,8 +96,7 @@ func Unauthorized(w http.ResponseWriter, why string) {
 }
 
 func Conflict(w http.ResponseWriter, code string, why string) {
-	// {"error":{"status":401,"code":"UNAUTHORIZED","message":"Unauthorized"}}
-	fmt.Printf("[Unauthorized] %s\n", why)
+	// JSON format see Conflict(...) calls
 	w.WriteHeader(http.StatusConflict)
 
 	SendJSON(w, Message{
