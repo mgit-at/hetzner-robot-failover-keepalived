@@ -85,12 +85,15 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
                 debug_log(log_prefix + "Header: " + str(header))
                 debug_log(log_prefix + "Data: " + str(payload))
                 r = requests.post(url, data=payload, headers=header)
-                debug_log(log_prefix + "Response:")
-                debug_log(r.status_code, r.reason)
+                debug_log(log_prefix + "Response: %s %s" % (r.status_code, r.reason))
                 debug_log(r.text)
                 j = r.json()
                 if r.status_code != 409 or j['error']['code'] != 'FAILOVER_LOCKED':
-                    normal_log(log_prefix + 'done')
+                    if r.status_code != 200:
+                        normal_log(log_prefix + "Failed with: %s %s" % (r.status_code, r.reason))
+                        normal_log(r.text)
+                    else:
+                        normal_log(log_prefix + 'done')
                     break
                 else:
                     normal_log(log_prefix + 'trying again in 120s...')
@@ -138,6 +141,8 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
                     "Authorization": "Basic " + b64encode(bytes(auth, 'utf-8')).decode('utf-8')
                 }
 
+            # wait 30s, check if still master, then do a check-and-switch again
+            # this is to prevent the jumping issue
             Process(target=change_request, args=(arg_endstate, url, header, our,
                                              config.iproute2_bin, addr, config.interface,
                                              config.dummy_interface if 'dummy_interface' in config and config.dummy_interface else False)
