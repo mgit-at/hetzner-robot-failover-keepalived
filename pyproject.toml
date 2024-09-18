@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "hetzner-robot-failover-keepalived"
+version = "0.0.0"
+description = "This is a little script for switching the failover ips on robot dedicated servers. It's also possible to use a robot vlan."
+authors = ["Maciej Krüger <mkrueger@mgit.at>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+bunch-py3 = "^2.0.0"
+requests = "^2.32.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
