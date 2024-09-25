@@ -12,8 +12,14 @@ from bunch import bunchify
 from base64 import b64encode
 from time import sleep
 
-CONFIG_PATH = os.path.join(os.path.abspath(
+CONFIG_PATH_DEV = os.path.join(os.path.abspath(
     os.path.dirname(__file__)), "config.json")
+
+CONFIG_PATH = os.path.join(os.path.abspath(
+    "/etc/robot-failover"), "config.json")
+
+if os.path.isfile(CONFIG_PATH_DEV):
+    CONFIG_PATH = CONFIG_PATH_DEV
 
 DEBUG = sys.stdout.isatty()
 FORCE_DEBUG = 'FORCE_DEBUG_FAILOVER' in os.environ
