@@ -5,4 +5,4 @@ set -euxo pipefail
 
 poetry install
 poetry run pip freeze > requirements.txt
-poetry run pex . -o robot_failover.pex -e robot_failover:main -r requirements.txt --python python3.11
+poetry run pex . -o robot_failover.pex -e robot_failover:cli -r requirements.txt --python python3.11

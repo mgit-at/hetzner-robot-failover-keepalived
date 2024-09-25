@@ -148,5 +148,8 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
                                              config.dummy_interface if 'dummy_interface' in config and config.dummy_interface else False)
                                          ).start()
 
-if __name__ == "__main__":
+def cli():
     main(arg_vrouter=int(sys.argv[1]), arg_type=sys.argv[2], arg_name=sys.argv[3], arg_endstate=sys.argv[4])
+
+if __name__ == "__main__":
+    cli()
