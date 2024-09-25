@@ -147,3 +147,4 @@ config.json
 *.pex
 requirements.txt
 *.deb
+result*
