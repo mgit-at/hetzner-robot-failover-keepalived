@@ -146,3 +146,4 @@ config.json
 .idea
 *.pex
 requirements.txt
+*.deb

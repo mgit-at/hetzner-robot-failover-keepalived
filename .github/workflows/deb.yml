@@ -1,0 +1,25 @@
+name: Build PDF
+
+on: push
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: cachix/install-nix-action@v22
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+      - run: nix-channel --update
+      - run: ./pex.sh
+      - run: ./deb.sh
+      - name: Store pex
+        uses: actions/upload-artifact@v3
+        with:
+          name: pex
+          path: robot_failover.pex
+      - name: Store deb
+        uses: actions/upload-artifact@v3
+        with:
+          name: deb
+          path: robot_failover.deb
