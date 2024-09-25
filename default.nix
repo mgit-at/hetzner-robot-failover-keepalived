@@ -1,18 +1,23 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, python3
+{
+  lib,
+  python3,
 }:
 
 python3.pkgs.buildPythonApplication rec {
   name = "hetzner-robot-failover-keepalived";
-  format = "other";
+  pyproject = true;
 
   src = ./.;
 
-  propagatedBuildInputs = [
-    python3.pkgs.requests
-    python3.pkgs.bunch
+  build-system = [
+    python3.pkgs.poetry-core
+    python3.pkgs.setuptools
+    python3.pkgs.wheel
+  ];
+
+  dependencies = with python3.pkgs; [
+    bunch
+    requests
   ];
 
   postPatch = ''
