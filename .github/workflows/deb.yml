@@ -1,4 +1,4 @@
-name: Build PDF
+name: Build pex & deb
 
 on: push
 
