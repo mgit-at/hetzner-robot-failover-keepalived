@@ -6,9 +6,9 @@ authors = ["Maciej Krüger <mkrueger@mgit.at>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "~3.12"
-bunch-py3 = "^2.0.0"
+python = ">=3.9,<3.14"
 requests = "^2.32.3"
+bunch = {git = "https://github.com/dsc/bunch"}
 
 
 [tool.poetry.group.dev.dependencies]
