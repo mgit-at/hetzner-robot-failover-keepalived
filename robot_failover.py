@@ -58,7 +58,7 @@ def has_ip(ip_bin_path, ip, interface):
     return bool(len(check_output([ip_bin_path, 'a', 's', interface, 'to', ip])))
 
 def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, interface, dummy_interface):
-    log_prefix = "[%s -> %s] " % (url, target_ip)
+    log_prefix = "[%s -> %s] S " % (url, target_ip)
     if endstate == "BACKUP":
         del_ip(ip_bin_path, floating_ip, interface)
         if dummy_interface:
@@ -73,6 +73,7 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
         if dummy_interface:
             del_ip(ip_bin_path, floating_ip, dummy_interface)
         if header:
+            recheck = False
             while True:
                 if not has_ip(ip_bin_path, floating_ip, interface):
                     normal_log(log_prefix + 'ip %s has vanished from interface %s, cancelling attempt to switch' % (floating_ip, interface))
@@ -100,6 +101,12 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
                         normal_log(r.text)
                     else:
                         normal_log(log_prefix + 'done')
+                    if not recheck:
+                        recheck = True
+                        log_prefix = "[%s -> %s] R " % (url, target_ip)
+                        normal_log(log_prefix + 'rechecking in 30s...')
+                        sleep(30)
+                        continue
                     break
                 else:
                     normal_log(log_prefix + 'trying again in 120s...')
