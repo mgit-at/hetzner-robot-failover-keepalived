@@ -34,6 +34,10 @@ jobs:
           name: deb
           path: robot_failover.deb
 
+      - name: Get current version
+        id: cversion
+        run: echo "::set-output name=version::$(git describe --tags | sed 's|v||g')"
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
