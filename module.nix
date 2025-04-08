@@ -145,14 +145,13 @@ in
       enable = true;
       extraGlobalDefs = ''
         vrrp_notify_priority_changes true
-        # vrrp_version 3
       '';
 
       vrrpInstances = let
         uniqueRouters = unique (map (i: i.router) cfg.common.floatingIPs);
       in listToAttrs (map (router: nameValuePair ("robot_${toString router}") ({
         interface = cfg.common.keepaliveInterface;
-        state = if cfg.thisRouterID != router then "BACKUP" else "MASTER";
+        state = "BACKUP";
         priority = if cfg.thisRouterID != router then router else cfg.thisRouterID + 10;
         virtualRouterId = router;
         extraConfig = ''
