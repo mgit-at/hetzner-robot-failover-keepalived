@@ -12,7 +12,7 @@ jobs:
           fetch-depth: "0"
       # pulls all tags (needed for lerna / semantic release to correctly version)
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - run: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
