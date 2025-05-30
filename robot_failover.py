@@ -84,7 +84,11 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
 
                 payload = "active_server_ip={}".format(target_ip)
 
-                if 'failover' in current and current['failover']['active_server_ip'] == target_ip:
+                if 'failover' in current and current['failover']['status'] == 'processing':
+                    normal_log(log_prefix + 'is currently processing, waiting, rechecking in 30s...')
+                    sleep(30)
+                    continue
+                if 'failover' in current and current['failover']['active_server_ip'] == target_ip and current['failover']['status'] == 'ready':
                     normal_log(log_prefix + 'failed over as requested already, need no switch')
                     break
 
