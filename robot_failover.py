@@ -59,11 +59,7 @@ def has_ip(ip_bin_path, ip, interface):
 
 def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, interface, dummy_interface):
     log_prefix = "[%s -> %s] S " % (url, target_ip)
-    if endstate == "BACKUP":
-        del_ip(ip_bin_path, floating_ip, interface)
-        if dummy_interface:
-            add_ip(ip_bin_path, floating_ip, dummy_interface)
-    elif endstate == "FAULT":
+    if endstate == "BACKUP" or endstate == "FAULT" or endstate == "STOP":
         del_ip(ip_bin_path, floating_ip, interface)
         if dummy_interface:
             add_ip(ip_bin_path, floating_ip, dummy_interface)
@@ -117,7 +113,7 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
                     sleep(120)
 
     else:
-        normal_log("Error: Endstate not defined!")
+        normal_log(f"Error: Endstate {endstate} not defined!")
 
 
 def main(arg_vrouter, arg_type, arg_name, arg_endstate):
