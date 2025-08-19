@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-# (c) 2018 Maximilian Siegl
+# (c) 2018.2025 Maximilian Siegl
+# (c) 2023-2025 Maciej Krüger
 
 import sys
 import json
 import os
 import requests
 import syslog
+import traceback
 from multiprocessing import Process
 from subprocess import check_output
 from bunch import bunchify
 from base64 import b64encode
 from time import sleep
+
+PROTO_ID = 253
 
 CONFIG_PATH_DEV = os.path.join(os.path.abspath(
     os.path.dirname(__file__)), "config.json")
@@ -24,11 +28,13 @@ if os.path.isfile(CONFIG_PATH_DEV):
 DEBUG = sys.stdout.isatty()
 FORCE_DEBUG = 'FORCE_DEBUG_FAILOVER' in os.environ
 
+
 def debug_log(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
     elif FORCE_DEBUG:
         syslog.syslog(syslog.LOG_INFO, *args, **kwargs)
+
 
 def normal_log(*args, **kwargs):
     if DEBUG:
@@ -37,37 +43,66 @@ def normal_log(*args, **kwargs):
         syslog.syslog(syslog.LOG_INFO, *args, **kwargs)
 
 
+def disable_ip(ip_bin_path, ip, interface):
+    normal_log('[%s] disabling ip %s' % (interface, ip))
+    if ':' in ip:
+        os.system(ip_bin_path + " -6 addr replace " + ip + "/128 dev " + interface + f" proto {PROTO_ID} preferred_lft 0")
+    else:
+        os.system(ip_bin_path + " addr replace " + ip + "/32 dev " + interface + f" proto {PROTO_ID} preferred_lft 0")
+
+
+def enable_ip(ip_bin_path, ip, interface):
+    normal_log('[%s] enabling ip %s' % (interface, ip))
+    if ':' in ip:
+        os.system(ip_bin_path + " -6 addr replace " + ip + "/128 dev " + interface + f" proto {PROTO_ID} preferred_lft forever")
+    else:
+        os.system(ip_bin_path + " addr replace " + ip + "/32 dev " + interface + f" proto {PROTO_ID} preferred_lft forever")
+
+
 def del_ip(ip_bin_path, ip, interface):
     normal_log('[%s] removing ip %s' % (interface, ip))
     if ':' in ip:
-        os.system(ip_bin_path + " -6 addr del " + ip + "/128 dev " + interface)
+        os.system(ip_bin_path + " -6 addr del " + ip + "/128 dev " + interface + f" proto {PROTO_ID}")
     else:
-        os.system(ip_bin_path + " addr del " + ip + "/32 dev " + interface)
+        os.system(ip_bin_path + " addr del " + ip + "/32 dev " + interface + f" proto {PROTO_ID}")
 
 
 def add_ip(ip_bin_path, ip, interface):
     normal_log('[%s] adding ip %s' % (interface, ip))
     if ':' in ip:
-        os.system(ip_bin_path + " -6 addr add " + ip + "/128 dev " + interface)
+        os.system(ip_bin_path + " -6 addr add " + ip + "/128 dev " + interface + f" proto {PROTO_ID}")
     else:
-        os.system(ip_bin_path + " addr add " + ip + "/32 dev " + interface)
+        os.system(ip_bin_path + " addr add " + ip + "/32 dev " + interface + f" proto {PROTO_ID}")
 
 
 def has_ip(ip_bin_path, ip, interface):
     # if this command returns any output, the address exists on the interface
-    return bool(len(check_output([ip_bin_path, 'a', 's', interface, 'to', ip])))
+    # if it's deprecated it means it's not to be used, we translate that to "doesn't exist"
+    out = check_output([ip_bin_path, 'a', 's', interface, 'to', ip, 'proto', str(PROTO_ID)])
+    return bool(len(out)) and not 'deprecated' in str(out)
+
+def change_request_wrapper(*args, **kwargs):
+    try:
+        return change_request(*args, **kwargs)
+    except Exception as e:
+        normal_log("Exception in change thread:")
+        normal_log(traceback.format_exc())
 
 def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, interface, dummy_interface):
     log_prefix = "[%s -> %s] S " % (url, target_ip)
     if endstate == "BACKUP" or endstate == "FAULT" or endstate == "STOP":
-        del_ip(ip_bin_path, floating_ip, interface)
         if dummy_interface:
+            del_ip(ip_bin_path, floating_ip, interface)
             add_ip(ip_bin_path, floating_ip, dummy_interface)
+        else:
+            disable_ip(ip_bin_path, floating_ip, interface)
 
     elif endstate == "MASTER":
-        add_ip(ip_bin_path, floating_ip, interface)
         if dummy_interface:
+            add_ip(ip_bin_path, floating_ip, interface)
             del_ip(ip_bin_path, floating_ip, dummy_interface)
+        else:
+            enable_ip(ip_bin_path, floating_ip, interface)
         if header:
             recheck = False
             while True:
@@ -156,7 +191,7 @@ def main(arg_vrouter, arg_type, arg_name, arg_endstate):
 
             # wait 30s, check if still master, then do a check-and-switch again
             # this is to prevent the jumping issue
-            Process(target=change_request, args=(arg_endstate, url, header, our,
+            Process(target=change_request_wrapper, args=(arg_endstate, url, header, our,
                                              config.iproute2_bin, addr, config.interface,
                                              config.dummy_interface if 'dummy_interface' in config and config.dummy_interface else False)
                                          ).start()
