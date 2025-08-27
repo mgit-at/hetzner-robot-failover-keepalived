@@ -65,4 +65,8 @@
       locations."/".return = "200 server-${config.networking.hostName}";
     };
   };
+
+  # this is only causing problems in test environment, as the physical networks are shared between both machines
+  # this is not in any way affecting production
+  boot.kernel.sysctl."net.ipv6.conf.all.accept_dad" = false;
 }
