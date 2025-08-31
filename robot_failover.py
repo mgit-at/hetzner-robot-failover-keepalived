@@ -110,7 +110,7 @@ def change_request(endstate, url, header, target_ip, ip_bin_path, floating_ip, i
             recheck = False
             while True:
                 if not has_ip(ip_bin_path, floating_ip, interface, use_proto):
-                    normal_log(log_prefix + 'ip %s has vanished from interface %s, cancelling attempt to switch' % (floating_ip, interface))
+                    normal_log(log_prefix + 'ip %s is no longer active on interface %s, cancelling attempt to switch' % (floating_ip, interface))
                     break
                 current = requests.get(url, headers=header)
                 current = current.json()
